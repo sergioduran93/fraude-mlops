@@ -56,6 +56,38 @@ Predecir si una reclamación es fraudulenta:
 data → ETL → features → modelo → MLflow → API → monitoreo
 ```
 
+### Estructura del repositorio
+
+```text
+fraude-mlops/
+├── data/
+│   ├── raw/
+│   ├── interim/
+│   └── processed/
+├── notebooks/
+│   ├── 01_eda.ipynb
+│   ├── 02_baseline.ipynb
+│   └── 03_experiments.ipynb
+├── src/
+│   └── healthcare_fraud/
+│       ├── __init__.py
+│       ├── config.py
+│       ├── data/
+│       ├── features/
+│       ├── models/
+│       ├── pipelines/
+│       ├── api/
+│       └── monitoring/
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── models/
+├── logs/
+├── .gitignore
+├── README.md
+└── pyproject.toml
+```
+
 ---
 
 
@@ -82,7 +114,7 @@ cd fraude-mlops
 python -m venv venv
 venv\Scripts\activate  # Windows
 
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ---
@@ -91,15 +123,11 @@ pip install -r requirements.txt
 
 ### 1. Procesamiento de datos
 
-```bash
-python src/data/load_data.py
-```
+Los módulos viven en el paquete `healthcare_fraud` bajo `src/` (por ejemplo `healthcare_fraud.data`). Los comandos concretos se definirán al cablear el pipeline.
 
 ### 2. Entrenamiento del modelo
 
-```bash
-python src/models/train.py
-```
+Los puntos de entrada de entrenamiento estarán en `healthcare_fraud.models` y flujos en `healthcare_fraud.pipelines`.
 
 ### 3. Ejecutar MLflow
 
@@ -118,7 +146,7 @@ http://localhost:5000
 ## 🌐 Despliegue del Modelo (API)
 
 ```bash
-uvicorn src.api.main:app --reload
+uvicorn healthcare_fraud.api.main:app --reload
 ```
 
 Endpoint ejemplo:
