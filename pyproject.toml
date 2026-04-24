@@ -19,7 +19,6 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "scikit-learn==1.6.1",
     "seaborn>=0.13.0",
-    "shap>=0.46.0",
     "uvicorn[standard]>=0.32.0",
     "xgboost>=3.0.4",
 ]
@@ -30,6 +29,9 @@ dev = [
     "pre-commit>=4.0.0",
     "pytest>=8.0.0",
     "ruff>=0.8.0",
+]
+monitoring = [
+    "shap>=0.46.0",
 ]
 
 [tool.pytest.ini_options]

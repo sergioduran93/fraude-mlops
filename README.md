@@ -365,6 +365,7 @@ uv run pytest tests/unit/test_data.py -v  # test específico
 
 | Error | Causa probable | Solución |
 |---|---|---|
+| `Failed to build llvmlite` durante `uv sync` | `shap` arrastra `llvmlite==0.36.0` incompatible con Python 3.11 | `shap` se instala solo en Fase 05: `uv sync --group monitoring` |
 | `git: command not found` | Git no instalado | Seguir el Paso 1 de Fase 00 |
 | `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
 | `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
