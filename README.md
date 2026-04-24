@@ -62,6 +62,11 @@ Datos Kaggle (CSV)
 
 ## Fase 00 — Configuración del entorno
 
+> **Convención para todas las fases:** antes de instalar cualquier herramienta,
+> ejecutar el comando de verificación indicado. Si la versión mostrada cumple el
+> requisito mínimo, saltar directamente al siguiente paso. Este patrón aplica en
+> todas las fases del proyecto y en todos los sistemas operativos.
+
 ### Paso 1 — Instalar Git
 
 Verificar si ya está instalado:
@@ -132,6 +137,16 @@ python --version
 
 ### Paso 3 — Instalar uv
 
+Verificar si ya está instalado:
+
+```bash
+uv --version
+```
+
+Si el comando retorna `uv 0.4.x` o superior, saltar al Paso 4.
+
+Si no está instalado:
+
 **macOS / Linux:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -147,7 +162,7 @@ Cerrar y abrir una terminal nueva para que el PATH se actualice. Verificar:
 
 ```bash
 uv --version
-# Esperado: uv 0.x.x
+# Esperado: uv 0.4.x o superior
 ```
 
 ---
