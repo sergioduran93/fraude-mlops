@@ -51,18 +51,86 @@ Datos Kaggle (CSV)
 
 ## Requisitos del sistema
 
-| Herramienta    | Versión mínima | Verificación           |
-|----------------|----------------|------------------------|
-| Python         | 3.11           | `python --version`     |
-| uv             | 0.4+           | `uv --version`         |
-| Git            | 2.40+          | `git --version`        |
-| Docker Desktop | 24+            | `docker --version`     |
+| Herramienta    | Versión mínima | Verificación           | Necesario desde |
+|----------------|----------------|------------------------|-----------------|
+| Git            | 2.40+          | `git --version`        | Fase 00         |
+| Python         | 3.11           | `python --version`     | Fase 00         |
+| uv             | 0.4+           | `uv --version`         | Fase 00         |
+| Docker Desktop | 24+            | `docker --version`     | Fase 04         |
 
 ---
 
 ## Fase 00 — Configuración del entorno
 
-### 1. Instalar uv
+### Paso 1 — Instalar Git
+
+Verificar si ya está instalado:
+
+```bash
+git --version
+```
+
+Si el comando no existe o la versión es inferior a 2.40, instalar:
+
+**macOS — opción A (Xcode Command Line Tools, incluye git):**
+```bash
+xcode-select --install
+```
+
+**macOS — opción B (Homebrew):**
+```bash
+brew install git
+```
+
+**Windows (PowerShell — ejecutar como administrador):**
+```powershell
+winget install --id Git.Git -e --source winget
+```
+
+Cerrar y abrir una terminal nueva tras la instalación. Verificar:
+
+```bash
+git --version
+# Esperado: git version 2.x.x
+```
+
+---
+
+### Paso 2 — Instalar Python 3.11
+
+Verificar si ya está instalado:
+
+```bash
+python --version
+```
+
+Si la versión es inferior a 3.11 o el comando no existe, instalar:
+
+**macOS — opción A (Homebrew):**
+```bash
+brew install python@3.11
+```
+
+**macOS — opción B (instalador oficial):**
+
+Descargar desde `https://www.python.org/downloads/release/python-3110/`,
+ejecutar el archivo `.pkg` y seguir el asistente de instalación.
+
+**Windows (PowerShell — ejecutar como administrador):**
+```powershell
+winget install --id Python.Python.3.11 -e --source winget
+```
+
+Cerrar y abrir una terminal nueva tras la instalación. Verificar:
+
+```bash
+python --version
+# Esperado: Python 3.11.x
+```
+
+---
+
+### Paso 3 — Instalar uv
 
 **macOS / Linux:**
 ```bash
@@ -74,23 +142,29 @@ source ~/.zshrc   # o ~/.bashrc según tu shell
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-Cerrar y abrir una terminal nueva para que el PATH se actualice.
 
-Verificar:
+Cerrar y abrir una terminal nueva para que el PATH se actualice. Verificar:
+
 ```bash
 uv --version
+# Esperado: uv 0.x.x
 ```
 
-### 2. Clonar el repositorio
+---
+
+### Paso 4 — Clonar el repositorio
 
 ```bash
 git clone https://github.com/sergioduran93/fraude-mlops.git
 cd fraude-mlops
 ```
 
-### 3. Configurar identidad git local
+---
 
-Cada integrante debe ejecutar esto dentro del directorio del proyecto:
+### Paso 5 — Configurar identidad git local
+
+Cada integrante debe ejecutar esto dentro del directorio del proyecto.
+Este comando no afecta la configuración global de git en el equipo.
 
 ```bash
 git config --local user.email "tu-email@gmail.com"
@@ -98,21 +172,27 @@ git config --local user.name "Tu Nombre Completo"
 ```
 
 Verificar:
+
 ```bash
 git config --local user.email
 git config --local user.name
 ```
 
-### 4. Instalar dependencias
+---
+
+### Paso 6 — Instalar dependencias del proyecto
 
 ```bash
 uv sync --group dev
 ```
 
-Crea `.venv/` e instala todas las dependencias. No es necesario activar el entorno;
-usar siempre el prefijo `uv run` para ejecutar cualquier comando.
+Este comando crea el entorno virtual `.venv/` e instala todas las dependencias
+definidas en `pyproject.toml`. No es necesario activar el entorno manualmente;
+usar siempre el prefijo `uv run` para ejecutar cualquier comando del proyecto.
 
-### 5. Configurar variables de entorno
+---
+
+### Paso 7 — Configurar variables de entorno
 
 **macOS / Linux:**
 ```bash
@@ -129,22 +209,28 @@ copy .env.example .env
 Copy-Item .env.example .env
 ```
 
-Abrir `.env` con cualquier editor y completar los valores. No modificar `.env.example`.
+Abrir `.env` con cualquier editor de texto y completar los valores según el entorno
+local. No modificar `.env.example`.
 
-### 6. Instalar hooks de pre-commit
+---
+
+### Paso 8 — Instalar hooks de pre-commit
 
 ```bash
 uv run pre-commit install
 ```
 
-Verificar que todos los hooks pasan:
+Verificar que todos los hooks pasan sin errores:
+
 ```bash
 uv run pre-commit run --all-files
 ```
 
-### 7. Verificar la instalación
+---
 
-Los tres comandos deben ejecutarse sin errores:
+### Paso 9 — Verificar la instalación completa
+
+Los tres comandos deben ejecutarse sin errores antes de empezar a desarrollar:
 
 ```bash
 uv run ruff check .
@@ -156,12 +242,12 @@ uv run pytest -q
 
 ## Fase 01 — Descarga del dataset
 
-### Obtener credenciales de Kaggle
+### Paso 1 — Obtener credenciales de Kaggle
 
 1. Ir a `https://www.kaggle.com` → cuenta → Settings → sección "API"
-2. Clic en "Create New Token" — se descarga `kaggle.json`
+2. Clic en "Create New Token" — se descarga el archivo `kaggle.json`
 
-### Ubicar el archivo de credenciales
+### Paso 2 — Ubicar el archivo de credenciales
 
 **macOS / Linux:**
 ```bash
@@ -176,7 +262,14 @@ New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kaggle"
 Move-Item "$env:USERPROFILE\Downloads\kaggle.json" "$env:USERPROFILE\.kaggle\kaggle.json"
 ```
 
-### Descargar el dataset
+### Paso 3 — Verificar credenciales
+
+```bash
+uv run kaggle datasets list --search "healthcare fraud"
+# Debe listar resultados sin error 401
+```
+
+### Paso 4 — Descargar el dataset
 
 ```bash
 uv run python -c "
@@ -234,6 +327,7 @@ docker compose down
 ```
 
 Endpoints disponibles:
+
 - `GET  /health` — estado del servicio y modelo cargado
 - `POST /predict` — predicción individual
 - `POST /predict/batch` — predicción en lote
@@ -255,6 +349,8 @@ uv run pytest tests/unit/test_data.py -v  # test específico
 
 | Error | Causa probable | Solución |
 |---|---|---|
+| `git: command not found` | Git no instalado | Seguir el Paso 1 de Fase 00 |
+| `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
 | `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
 | `ModuleNotFoundError: healthcare_fraud` | Proyecto no instalado | Ejecutar `uv sync` desde la raíz del repo |
 | `kaggle.rest.ApiException: 401` | `kaggle.json` en ruta incorrecta o sin permisos | Verificar `~/.kaggle/kaggle.json` y permisos 600 en macOS/Linux |
