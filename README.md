@@ -186,9 +186,25 @@ git config --local user.name
 uv sync --group dev
 ```
 
-Este comando crea el entorno virtual `.venv/` e instala todas las dependencias
-definidas en `pyproject.toml`. No es necesario activar el entorno manualmente;
-usar siempre el prefijo `uv run` para ejecutar cualquier comando del proyecto.
+`uv sync` crea automáticamente el entorno virtual `.venv/` en la raíz del proyecto
+e instala todas las dependencias de `pyproject.toml`. No es necesario crearlo ni
+activarlo manualmente; basta con usar el prefijo `uv run` en cada comando.
+
+**Configurar el intérprete en el IDE (obligatorio para autocompletado):**
+
+VS Code — abrir la paleta de comandos (`Ctrl+Shift+P` / `Cmd+Shift+P`),
+seleccionar `Python: Select Interpreter` y elegir la ruta:
+
+```
+# macOS / Linux:
+.venv/bin/python
+
+# Windows:
+.venv\Scripts\python.exe
+```
+
+PyCharm — ir a `Settings > Project > Python Interpreter > Add Interpreter > Existing`,
+seleccionar la misma ruta indicada arriba.
 
 ---
 
