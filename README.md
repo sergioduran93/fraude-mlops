@@ -397,9 +397,9 @@ Tablas esperadas y dimensiones de referencia:
 |-------|-------|----------|-------------|
 | `labels_train` | 5,410 | 2 | Proveedores con etiqueta `PotentialFraud` |
 | `labels_test` | 1,353 | 1 | Proveedores sin etiqueta (para inferencia) |
-| `beneficiary` | ~63,000+ | 25 | Datos demográficos de beneficiarios (split train) |
-| `inpatient` | ~9,500+ | 30 | Reclamaciones hospitalarias (split train) |
-| `outpatient` | ~125,000+ | 27 | Reclamaciones ambulatorias (split train) |
+| `beneficiary` | 138,556 | 25 | Datos demográficos de beneficiarios (split train) |
+| `inpatient` | 40,474 | 30 | Reclamaciones hospitalarias (split train) |
+| `outpatient` | 517,737 | 27 | Reclamaciones ambulatorias (split train) |
 
 Los archivos de test clínico (`Test_Beneficiary`, `Test_Inpatient`, `Test_Outpatient`) se
 omiten intencionalmente — no tienen etiquetas de fraude y se usan en Fase 04 (inferencia).
