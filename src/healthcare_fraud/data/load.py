@@ -13,12 +13,15 @@ from healthcare_fraud.config import SETTINGS
 logger = logging.getLogger(__name__)
 
 # Maps regex patterns in CSV filenames to semantic keys.
+# Patterns are specific to train split to avoid loading test clinical tables in EDA.
+# Test clinical files (Test_Beneficiary, Test_Inpatient, Test_Outpatient) are skipped
+# because they lack fraud labels and are only needed for inference (Fase 04+).
 _TABLE_PATTERNS: list[tuple[str, str]] = [
-    (r"beneficiary", "beneficiary"),
-    (r"inpatient", "inpatient"),
-    (r"outpatient", "outpatient"),
-    (r"train", "labels_train"),
-    (r"test", "labels_test"),
+    (r"train.*beneficiary", "beneficiary"),
+    (r"train.*inpatient", "inpatient"),
+    (r"train.*outpatient", "outpatient"),
+    (r"^train[^_]", "labels_train"),
+    (r"^test[^_]", "labels_test"),
 ]
 
 
