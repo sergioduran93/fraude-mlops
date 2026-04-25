@@ -284,72 +284,139 @@ uv run pytest -q
 | `src/healthcare_fraud/data/clean.py` | Limpieza, encoding categórico, parseo de fechas, cast de tipos |
 | `notebooks/01_eda.ipynb` | EDA completo: distribuciones, nulos, correlaciones, desbalance |
 
-### Paso 1 — Obtener credenciales de Kaggle
+---
 
-1. Ir a `https://www.kaggle.com` → cuenta → Settings → sección "API"
-2. Clic en "Create New Token" — se descarga el archivo `kaggle.json`
+### Paso 1 — Crear cuenta en Kaggle (si no se tiene)
 
-### Paso 2 — Ubicar el archivo de credenciales
+Verificar si ya se tiene cuenta: intentar ingresar a `https://www.kaggle.com`. Si ya se
+tiene cuenta activa, saltar al Paso 2.
+
+Si no se tiene cuenta: registrarse en `https://www.kaggle.com/account/login?phase=startRegisterTab`
+con Google o email. El registro es gratuito.
+
+---
+
+### Paso 2 — Generar el token de la API de Kaggle
+
+> La interfaz actual de Kaggle muestra el token directamente en pantalla
+> en lugar de descargar un archivo. Seguir estos pasos con exactitud.
+
+1. Ingresar a `https://www.kaggle.com` con la cuenta propia
+2. Hacer clic en el avatar (esquina superior derecha) → **Settings**
+3. Desplazarse hasta la sección **API**
+4. Hacer clic en **Create New Token**
+5. Aparece un modal con el token. Copiar el valor completo del campo **API TOKEN**
+   (comienza con `KGAT_...`)
+6. También copiar el **username** de Kaggle — se ve en la URL del perfil:
+   `https://www.kaggle.com/TU_USERNAME`
+
+> El token solo se muestra una vez. Si se cierra el modal sin copiarlo,
+> hacer clic en "Expire API Token" y generar uno nuevo.
+
+---
+
+### Paso 3 — Crear el archivo de credenciales
+
+Verificar si ya existe el archivo antes de crearlo:
 
 **macOS / Linux:**
 ```bash
-mkdir -p ~/.kaggle
-mv ~/Downloads/kaggle.json ~/.kaggle/kaggle.json
-chmod 600 ~/.kaggle/kaggle.json
+ls ~/.kaggle/kaggle.json
 ```
 
 **Windows PowerShell:**
 ```powershell
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kaggle"
-Move-Item "$env:USERPROFILE\Downloads\kaggle.json" "$env:USERPROFILE\.kaggle\kaggle.json"
+Test-Path "$env:USERPROFILE\.kaggle\kaggle.json"
 ```
 
-### Paso 3 — Verificar credenciales
+Si retorna `True` (Windows) o muestra la ruta (Mac/Linux), saltar al Paso 4.
+
+Si no existe, crearlo con los valores copiados en el Paso 2:
+
+**macOS / Linux:**
+```bash
+mkdir -p ~/.kaggle
+echo '{"username":"TU_USERNAME","key":"KGAT_TU_TOKEN"}' > ~/.kaggle/kaggle.json
+chmod 600 ~/.kaggle/kaggle.json
+```
+
+**Windows PowerShell** (ejecutar los dos comandos por separado):
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kaggle"
+```
+```powershell
+'{"username":"TU_USERNAME","key":"KGAT_TU_TOKEN"}' | Out-File "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding utf8
+```
+
+Reemplazar `TU_USERNAME` y `KGAT_TU_TOKEN` con los valores propios del Paso 2.
+
+Verificar que el archivo quedó bien:
+
+**macOS / Linux:**
+```bash
+cat ~/.kaggle/kaggle.json
+# Esperado: {"username":"tu_usuario","key":"KGAT_..."}
+```
+
+**Windows PowerShell:**
+```powershell
+Get-Content "$env:USERPROFILE\.kaggle\kaggle.json"
+# Esperado: {"username":"tu_usuario","key":"KGAT_..."}
+```
+
+---
+
+### Paso 4 — Verificar autenticación
 
 ```bash
 uv run kaggle datasets list --search "healthcare fraud"
-# Debe listar resultados sin error 401
 ```
 
-### Paso 4 — Descargar y cargar el dataset
+Esperado: lista de datasets sin error de autenticación. Si aparece `401` o
+`You must authenticate`, revisar que `kaggle.json` tiene el formato correcto (Paso 3).
 
-La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs automáticamente.
-Si los archivos ya existen en `data/raw/`, reutiliza los locales sin descargar de nuevo.
+---
 
+### Paso 5 — Descargar y cargar el dataset
+
+La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs
+automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+
+**macOS / Linux:**
 ```bash
-uv run python -c "
-from healthcare_fraud.data import load_dataset
-dfs = load_dataset()
-for name, df in dfs.items():
-    print(f'{name}: {df.shape[0]:,} filas x {df.shape[1]} columnas')
-"
+uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dataset(); [print(f'{n}: {df.shape[0]:,} filas x {df.shape[1]} cols') for n, df in dfs.items()]"
+```
+
+**Windows PowerShell:**
+```powershell
+uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dataset(); [print(f'{n}: {df.shape[0]:,} filas x {df.shape[1]} cols') for n, df in dfs.items()]"
 ```
 
 Tablas esperadas: `beneficiary`, `inpatient`, `outpatient`, `labels_train`, `labels_test`.
 
-### Paso 5 — Validar y limpiar las tablas
+---
+
+### Paso 6 — Validar y limpiar las tablas
 
 ```bash
-uv run python -c "
-from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe
-dfs_raw = load_dataset()
-for name, df in dfs_raw.items():
-    validated = validate_dataframe(df, name)
-    cleaned = clean_dataframe(validated, name)
-    print(f'{name}: {cleaned.shape[0]:,} filas x {cleaned.shape[1]} columnas — OK')
-"
+uv run python -c "from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe; [print(f'{n}: OK {clean_dataframe(validate_dataframe(df,n),n).shape}') for n,df in load_dataset().items()]"
 ```
 
-### Paso 6 — Ejecutar el notebook EDA
+Esperado: cada tabla imprime `OK` con sus dimensiones finales.
 
-Requiere haber completado los pasos 4 y 5 (datos descargados en `data/raw/`).
+---
+
+### Paso 7 — Ejecutar el notebook EDA
+
+Requiere datos descargados (Paso 5). Ejecutar desde la raíz del proyecto:
 
 ```bash
 uv run jupyter notebook notebooks/01_eda.ipynb
 ```
 
-Ejecutar todas las celdas en orden. El notebook cubre: dimensiones de tablas, desbalance de
-clases, distribuciones de montos, análisis de nulos, correlaciones y distribución geográfica.
+En el navegador: **Kernel → Restart & Run All**. Verificar que ninguna celda
+muestra error en rojo. El notebook cubre: dimensiones, desbalance de clases,
+distribuciones de montos, análisis de nulos, correlaciones y distribución geográfica.
 
 ---
 
@@ -466,8 +533,11 @@ uv sync --group dev → ruff check → ruff format --check → pytest -q
 | `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
 | `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
 | `ModuleNotFoundError: healthcare_fraud` | Paquete no instalado o entorno incorrecto | Ejecutar `uv sync --group dev` desde la raíz del repo; nunca usar `python` directamente, usar `uv run python` |
-| `kaggle.rest.ApiException: 401` | `kaggle.json` en ruta incorrecta o sin permisos | macOS/Linux: `~/.kaggle/kaggle.json` con `chmod 600`. Windows: `%USERPROFILE%\.kaggle\kaggle.json` |
-| `FileNotFoundError: kaggle.json not found` | Función `authenticate_kaggle()` no encontró el archivo | Seguir el Paso 2 de Fase 01 para ubicar `kaggle.json` |
+| `kaggle.rest.ApiException: 401` | `kaggle.json` con credenciales incorrectas o expiradas | Generar nuevo token en Kaggle Settings → API y recrear el archivo (Fase 01 Paso 2-3) |
+| `FileNotFoundError: kaggle.json not found` | Archivo no creado o en ruta incorrecta | Windows: `%USERPROFILE%\.kaggle\kaggle.json`. macOS/Linux: `~/.kaggle/kaggle.json` (Fase 01 Paso 3) |
+| `You must authenticate before you can call the Kaggle API` | Variable de entorno o archivo ausente | Seguir Fase 01 Pasos 2-4 completos; usar `uv run kaggle` nunca `kaggle` directamente |
+| Login de Kaggle queda en loop de reCAPTCHA en Chrome | Conflicto de cookies o extensiones | Usar Microsoft Edge o Firefox; o limpiar cookies de `kaggle.com` en Chrome |
+| `New-Item: A positional parameter cannot be found` | Dos comandos pegados en una sola línea en PowerShell | Ejecutar cada comando de PowerShell por separado, no encadenados en la misma línea |
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
 | `prefect.exceptions.MissingContextError` | Flow ejecutado directamente | Usar `uv run python main.py`, no `pipeline.py` |
 | `mlflow.exceptions.MlflowException: Run not found` | `mlflow.db` eliminado o ruta distinta | Verificar `MLFLOW_TRACKING_URI` en `.env` |
