@@ -288,38 +288,80 @@ uv run pytest -q
 
 ### Paso 1 — Crear cuenta en Kaggle (si no se tiene)
 
-Verificar si ya se tiene cuenta: intentar ingresar a `https://www.kaggle.com`. Si ya se
-tiene cuenta activa, saltar al Paso 2.
+Verificar si ya se tiene cuenta:
 
-Si no se tiene cuenta: registrarse en `https://www.kaggle.com/account/login?phase=startRegisterTab`
-con Google o email. El registro es gratuito.
+```
+Abrir https://www.kaggle.com en el navegador
+```
+
+Si carga el dashboard personal, ya se tiene cuenta — saltar al Paso 2.
+Si redirige a login, registrarse con Google o email (gratuito).
+
+> Si Chrome queda en loop de reCAPTCHA al iniciar sesión, usar **Microsoft Edge** o **Firefox**.
 
 ---
 
-### Paso 2 — Generar el token de la API de Kaggle
+### Paso 2 — Obtener el username de Kaggle
 
-> La interfaz actual de Kaggle muestra el token directamente en pantalla
-> en lugar de descargar un archivo. Seguir estos pasos con exactitud.
+El username es el identificador de la cuenta y es necesario para configurar las credenciales.
 
-1. Ingresar a `https://www.kaggle.com` con la cuenta propia
-2. Hacer clic en el avatar (esquina superior derecha) → **Settings**
+Verificar el username: una vez dentro de Kaggle, mirar la URL del perfil personal:
+
+```
+https://www.kaggle.com/TU_USERNAME
+                        ^^^^^^^^^^^^
+                        Este es el username
+```
+
+También se puede ver haciendo clic en el avatar (esquina superior derecha) — aparece
+debajo del nombre en el menú desplegable.
+
+Ejemplo de username: `diegocastanedaloaiza`, `sduran93`, `iscastrillon`
+
+---
+
+### Paso 3 — Generar el token de la API
+
+> La interfaz actual de Kaggle (2025+) muestra el token en pantalla en lugar de
+> descargarlo como archivo. El token solo se puede ver una vez al generarlo.
+
+1. Dentro de Kaggle, hacer clic en el **avatar** (esquina superior derecha)
+2. Seleccionar **Settings**
 3. Desplazarse hasta la sección **API**
-4. Hacer clic en **Create New Token**
-5. Aparece un modal con el token. Copiar el valor completo del campo **API TOKEN**
-   (comienza con `KGAT_...`)
-6. También copiar el **username** de Kaggle — se ve en la URL del perfil:
-   `https://www.kaggle.com/TU_USERNAME`
+4. Hacer clic en el botón **Create New Token**
 
-> El token solo se muestra una vez. Si se cierra el modal sin copiarlo,
-> hacer clic en "Expire API Token" y generar uno nuevo.
+Aparece un modal con este contenido:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Please copy your API token now. You won't be able to   │
+│  view it again.                                         │
+│                                                         │
+│  API TOKEN                                              │
+│  KGAT_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  │
+│                                  [icono copiar]         │
+│                                                         │
+│  To use this token, set the KAGGLE_API_TOKEN variable:  │
+│  export KAGGLE_API_TOKEN=KGAT_xxxx...                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Copiar el token completo** — comienza siempre con `KGAT_` seguido de caracteres
+alfanuméricos. Ejemplo del formato:
+
+```
+KGAT_634cc06f31a57d8a5c47103ec093a759
+```
+
+> Si se cierra el modal sin copiarlo: volver a Settings → API → clic en
+> **Expire API Token** → luego **Create New Token** para generar uno nuevo.
 
 ---
 
-### Paso 3 — Configurar las credenciales
+### Paso 4 — Configurar las credenciales
 
-> **Cada integrante del equipo debe completar este paso con su propia cuenta de Kaggle.**
-> El nuevo token (`KGAT_...`) se configura como variable de entorno, no como archivo.
-> Nunca compartir tokens entre compañeros ni commitearlos al repositorio.
+> **Cada integrante debe completar este paso con su propia cuenta.**
+> Nunca compartir tokens ni commitearlos — el archivo `.env` está en `.gitignore`.
 
 **Verificar primero si ya está configurado:**
 
@@ -333,50 +375,56 @@ Windows PowerShell:
 echo $env:KAGGLE_API_TOKEN
 ```
 
-Si muestra el token (`KGAT_...`), saltar al Paso 4.
+Si muestra el token (`KGAT_...`), saltar al Paso 5.
 
-Si no muestra nada, configurarlo con el token copiado en el Paso 2:
+Si no muestra nada, configurar con el token del Paso 3:
 
 **macOS / Linux:**
 ```bash
-# 1. Exportar en la sesión actual
+# Activar en la sesión actual
 export KAGGLE_API_TOKEN=KGAT_TU_TOKEN
 
-# 2. Agregar al .env del proyecto para que persista en Python
+# Persistir en el .env del proyecto (Python lo lee via dotenv)
 echo 'KAGGLE_API_TOKEN=KGAT_TU_TOKEN' >> .env
 ```
 
-**Windows PowerShell** (ejecutar cada comando por separado):
+**Windows PowerShell** (un comando por vez):
 ```powershell
-# 1. Configurar permanentemente para el usuario de Windows
+# Persistir permanentemente para el usuario de Windows
 [System.Environment]::SetEnvironmentVariable("KAGGLE_API_TOKEN", "KGAT_TU_TOKEN", "User")
 ```
 ```powershell
-# 2. Activar en la sesión actual sin cerrar el terminal
+# Activar en la sesión actual (sin cerrar la terminal)
 $env:KAGGLE_API_TOKEN = "KGAT_TU_TOKEN"
 ```
 ```powershell
-# 3. Agregar al .env del proyecto (crearlo si no existe)
+# Agregar al .env del proyecto
 Add-Content -Path ".env" -Value "KAGGLE_API_TOKEN=KGAT_TU_TOKEN"
 ```
 
-Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 2.
-El archivo `.env` está en `.gitignore` — nunca se commitea.
+Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 3.
 
 ---
 
-### Paso 4 — Verificar autenticación
+### Paso 5 — Verificar autenticación
 
 ```bash
 uv run kaggle datasets list --search "healthcare fraud"
 ```
 
-Esperado: lista de datasets sin error de autenticación. Si aparece `401` o
-`You must authenticate`, verificar que `KAGGLE_API_TOKEN` está configurado (Paso 3).
+Esperado: lista de datasets como esta:
+
+```
+ref                                                    title                                    ...
+rohitrox/healthcare-provider-fraud-detection-analysis  Healthcare Provider Fraud Detection ...
+```
+
+Si aparece `401` o `You must authenticate`, verificar que `KAGGLE_API_TOKEN` está
+configurado (Paso 4) y que la terminal fue abierta después de configurar la variable.
 
 ---
 
-### Paso 5 — Descargar y cargar el dataset
+### Paso 6 — Descargar y cargar el dataset
 
 La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs
 automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
@@ -406,7 +454,7 @@ omiten intencionalmente — no tienen etiquetas de fraude y se usan en Fase 04 (
 
 ---
 
-### Paso 6 — Validar y limpiar las tablas
+### Paso 7 — Validar y limpiar las tablas
 
 Verificar primero que los datos están descargados:
 
@@ -445,9 +493,9 @@ outpatient:   OK (517737, 14)
 
 ---
 
-### Paso 7 — Ejecutar el notebook EDA
+### Paso 8 — Ejecutar el notebook EDA
 
-Verificar que los datos están en `data/raw/` (Paso 5 completado) antes de continuar.
+Verificar que los datos están en `data/raw/` (Paso 6 completado) antes de continuar.
 
 Abrir el notebook:
 
