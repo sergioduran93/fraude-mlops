@@ -408,25 +408,67 @@ omiten intencionalmente — no tienen etiquetas de fraude y se usan en Fase 04 (
 
 ### Paso 6 — Validar y limpiar las tablas
 
+Verificar primero que los datos están descargados:
+
+**macOS / Linux:**
 ```bash
-uv run python -c "from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe; [print(f'{n}: OK {clean_dataframe(validate_dataframe(df,n),n).shape}') for n,df in load_dataset().items()]"
+ls data/raw/*.csv
 ```
 
-Esperado: cada tabla imprime `OK` con sus dimensiones finales.
+**Windows PowerShell:**
+```powershell
+Get-ChildItem data\raw\*.csv | Select-Object Name
+```
+
+Debe listar al menos 8 archivos CSV. Si no existen, volver al Paso 5.
+
+Ejecutar validación y limpieza:
+
+**macOS / Linux y Windows PowerShell:**
+```bash
+uv run python -c "from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe; [print(f'{n}: OK -> {clean_dataframe(validate_dataframe(df,n),n).shape}') for n,df in load_dataset().items()]"
+```
+
+Esperado — cada tabla imprime `OK` con sus dimensiones limpias:
+
+```
+labels_test:  OK -> (1353, 1)
+labels_train: OK -> (5410, 2)
+beneficiary:  OK -> (138556, N)
+inpatient:    OK -> (40474, N)
+outpatient:   OK -> (517737, N)
+```
+
+> Las columnas `N` varían porque `clean.py` elimina columnas con más del 80% de nulos.
 
 ---
 
 ### Paso 7 — Ejecutar el notebook EDA
 
-Requiere datos descargados (Paso 5). Ejecutar desde la raíz del proyecto:
+Verificar que los datos están en `data/raw/` (Paso 5 completado) antes de continuar.
 
+Abrir el notebook:
+
+**macOS / Linux y Windows PowerShell:**
 ```bash
 uv run jupyter notebook notebooks/01_eda.ipynb
 ```
 
-En el navegador: **Kernel → Restart & Run All**. Verificar que ninguna celda
-muestra error en rojo. El notebook cubre: dimensiones, desbalance de clases,
-distribuciones de montos, análisis de nulos, correlaciones y distribución geográfica.
+Se abre el navegador automáticamente. En la barra de menú del notebook:
+
+1. Hacer clic en **Kernel**
+2. Seleccionar **Restart & Run All**
+3. Confirmar en el diálogo que aparece
+
+Verificar que ninguna celda muestra fondo rojo ni `Error` en el output.
+
+El notebook cubre:
+- Dimensiones y tipos de cada tabla
+- Desbalance de clases (`PotentialFraud`: ratio de fraude)
+- Distribuciones de montos de reclamación (inpatient y outpatient)
+- Análisis de nulos por columna
+- Heatmap de correlaciones (inpatient)
+- Distribución geográfica por estado (beneficiary)
 
 ---
 
