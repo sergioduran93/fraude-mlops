@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 # Columns with > this percentage of nulls are dropped.
 HIGH_NULL_THRESHOLD = 0.80
 
-# Columns whose names end with these suffixes are parsed as dates.
+# Columns whose names end with these suffixes or match these exact names are parsed as dates.
 _DATE_SUFFIXES = ("Dt", "Date", "DATE")
+_DATE_EXACT_NAMES = frozenset({"DOB", "DOD"})
 
 # Binary categorical mappings applied when the column exists.
 _BINARY_MAPS: dict[str, dict] = {
@@ -54,7 +55,9 @@ def _drop_high_null_columns(df: pd.DataFrame, name: str) -> pd.DataFrame:
 
 
 def _parse_date_columns(df: pd.DataFrame) -> pd.DataFrame:
-    date_cols = [col for col in df.columns if col.endswith(_DATE_SUFFIXES)]
+    date_cols = [
+        col for col in df.columns if col.endswith(_DATE_SUFFIXES) or col in _DATE_EXACT_NAMES
+    ]
     for col in date_cols:
         df[col] = pd.to_datetime(df[col], errors="coerce")
     if date_cols:
