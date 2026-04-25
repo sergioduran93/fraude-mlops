@@ -392,13 +392,3 @@ uv run pytest tests/unit/test_data.py -v  # test específico
 | Pre-commit falla con `gitleaks` | Posible secreto detectado | Revisar `git diff`, nunca commitear credenciales |
 | `ruff: E501 line too long` | Línea supera 100 caracteres | Ejecutar `uv run ruff format .` |
 | `docker: 'compose' is not a docker command` | Docker Desktop no instalado o versión antigua | Instalar Docker Desktop 4.x+ |
-
----
-
-## Integrantes
-
-| Nombre | Rol en el proyecto |
-|---|---|
-| Diego Castaneda | Fase 00 — Configuración, Fase 01 — EDA y datos |
-| Sergio Andrés Durán | Fase 02 — Experimentos MLflow, Fase 05 — Monitoreo |
-| Ivan Stiven Castrillon | Fase 03 — Orquestación Prefect, Fase 04 — Deployment |
