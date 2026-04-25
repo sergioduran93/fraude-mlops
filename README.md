@@ -432,14 +432,16 @@ uv run python -c "from healthcare_fraud.data import load_dataset, validate_dataf
 Esperado — cada tabla imprime `OK` con sus dimensiones limpias:
 
 ```
-labels_test:  OK -> (1353, 1)
-labels_train: OK -> (5410, 2)
-beneficiary:  OK -> (138556, N)
-inpatient:    OK -> (40474, N)
-outpatient:   OK -> (517737, N)
+labels_test:  OK (1353, 1)
+labels_train: OK (5410, 2)
+beneficiary:  OK (138556, 24)
+inpatient:    OK (40474, 23)
+outpatient:   OK (517737, 14)
 ```
 
-> Las columnas `N` varían porque `clean.py` elimina columnas con más del 80% de nulos.
+> `clean.py` elimina columnas con más del 80% de nulos. `outpatient` tiene 57.9% de nulos
+> global — el warning `High null percentage` es esperado e informativo, no es un error.
+> Las columnas de diagnósticos secundarios y procedimientos son las más afectadas.
 
 ---
 
