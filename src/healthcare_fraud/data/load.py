@@ -23,17 +23,25 @@ _TABLE_PATTERNS: list[tuple[str, str]] = [
 
 
 def authenticate_kaggle() -> None:
-    """Validate kaggle.json existence and authenticate the API client."""
+    """Authenticate the Kaggle API client via KAGGLE_API_TOKEN env var or kaggle.json."""
+    import os
+
+    import kaggle  # noqa: PLC0415
+
+    # New Kaggle token format (KGAT_...) requires the env var, not kaggle.json.
+    if os.environ.get("KAGGLE_API_TOKEN"):
+        kaggle.api.authenticate()
+        logger.info("Kaggle API authenticated via KAGGLE_API_TOKEN")
+        return
+
     kaggle_json = Path.home() / ".kaggle" / "kaggle.json"
     if not kaggle_json.exists():
         raise FileNotFoundError(
-            f"kaggle.json not found at {kaggle_json}. "
-            "Download it from https://www.kaggle.com/settings and place it there."
+            "Kaggle credentials not found. Set KAGGLE_API_TOKEN in .env or create "
+            f"{kaggle_json}. See README Fase 01 for setup instructions."
         )
-    import kaggle  # noqa: PLC0415
-
     kaggle.api.authenticate()
-    logger.info("Kaggle API authenticated")
+    logger.info("Kaggle API authenticated via kaggle.json")
 
 
 def download_dataset(dest: Path | None = None) -> Path:
