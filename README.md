@@ -201,9 +201,10 @@ git config --local user.name
 uv sync --group dev
 ```
 
-`uv sync` crea automáticamente el entorno virtual `.venv/` en la raíz del proyecto
-e instala todas las dependencias de `pyproject.toml`. No es necesario crearlo ni
-activarlo manualmente; basta con usar el prefijo `uv run` en cada comando.
+`uv sync` crea el entorno virtual `.venv/`, instala todas las dependencias de
+`pyproject.toml` y registra el paquete `healthcare_fraud` como editable en el
+entorno. Esto permite importarlo directamente con `uv run python` sin configurar
+`PYTHONPATH`. No es necesario activar el entorno; basta con el prefijo `uv run`.
 
 **Configurar el intérprete en el IDE (obligatorio para autocompletado):**
 
@@ -464,7 +465,7 @@ uv sync --group dev → ruff check → ruff format --check → pytest -q
 | `git: command not found` | Git no instalado | Seguir el Paso 1 de Fase 00 |
 | `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
 | `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
-| `ModuleNotFoundError: healthcare_fraud` | Proyecto no instalado | Ejecutar `uv sync` desde la raíz del repo |
+| `ModuleNotFoundError: healthcare_fraud` | Paquete no instalado o entorno incorrecto | Ejecutar `uv sync --group dev` desde la raíz del repo; nunca usar `python` directamente, usar `uv run python` |
 | `kaggle.rest.ApiException: 401` | `kaggle.json` en ruta incorrecta o sin permisos | macOS/Linux: `~/.kaggle/kaggle.json` con `chmod 600`. Windows: `%USERPROFILE%\.kaggle\kaggle.json` |
 | `FileNotFoundError: kaggle.json not found` | Función `authenticate_kaggle()` no encontró el archivo | Seguir el Paso 2 de Fase 01 para ubicar `kaggle.json` |
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
