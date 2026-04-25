@@ -315,54 +315,56 @@ con Google o email. El registro es gratuito.
 
 ---
 
-### Paso 3 — Crear el archivo de credenciales
+### Paso 3 — Configurar las credenciales
 
-Verificar si ya existe el archivo antes de crearlo:
+> El nuevo token de Kaggle (formato `KGAT_...`) se configura como variable de entorno,
+> no como archivo `kaggle.json`. Este es el método recomendado desde 2025.
+
+Verificar si ya está configurado:
 
 **macOS / Linux:**
 ```bash
-ls ~/.kaggle/kaggle.json
+echo $KAGGLE_API_TOKEN
 ```
 
 **Windows PowerShell:**
 ```powershell
-Test-Path "$env:USERPROFILE\.kaggle\kaggle.json"
+echo $env:KAGGLE_API_TOKEN
 ```
 
-Si retorna `True` (Windows) o muestra la ruta (Mac/Linux), saltar al Paso 4.
+Si muestra el token, saltar al Paso 4.
 
-Si no existe, crearlo con los valores copiados en el Paso 2:
+Si no está configurado, seguir estos pasos con el token copiado en el Paso 2:
 
-**macOS / Linux:**
+**macOS / Linux — agregar al archivo `.env` del proyecto:**
 ```bash
-mkdir -p ~/.kaggle
-echo '{"username":"TU_USERNAME","key":"KGAT_TU_TOKEN"}' > ~/.kaggle/kaggle.json
-chmod 600 ~/.kaggle/kaggle.json
+echo 'KAGGLE_API_TOKEN=KGAT_TU_TOKEN' >> .env
 ```
 
-**Windows PowerShell** (ejecutar los dos comandos por separado):
-```powershell
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.kaggle"
-```
-```powershell
-'{"username":"TU_USERNAME","key":"KGAT_TU_TOKEN"}' | Out-File "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding utf8
-```
-
-Reemplazar `TU_USERNAME` y `KGAT_TU_TOKEN` con los valores propios del Paso 2.
-
-Verificar que el archivo quedó bien:
-
-**macOS / Linux:**
+**macOS / Linux — y también exportar en la sesión actual:**
 ```bash
-cat ~/.kaggle/kaggle.json
-# Esperado: {"username":"tu_usuario","key":"KGAT_..."}
+export KAGGLE_API_TOKEN=KGAT_TU_TOKEN
 ```
 
-**Windows PowerShell:**
+**Windows PowerShell — configurar permanentemente para el usuario:**
 ```powershell
-Get-Content "$env:USERPROFILE\.kaggle\kaggle.json"
-# Esperado: {"username":"tu_usuario","key":"KGAT_..."}
+[System.Environment]::SetEnvironmentVariable("KAGGLE_API_TOKEN", "KGAT_TU_TOKEN", "User")
 ```
+
+**Windows PowerShell — y también en la sesión actual:**
+```powershell
+$env:KAGGLE_API_TOKEN = "KGAT_TU_TOKEN"
+```
+
+**Windows y macOS/Linux — agregar al archivo `.env` del proyecto:**
+
+Abrir `.env` (crearlo desde `.env.example` si no existe) y agregar:
+```
+KAGGLE_API_TOKEN=KGAT_TU_TOKEN
+```
+
+Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 2.
+El archivo `.env` está en `.gitignore` — nunca se commitea.
 
 ---
 
@@ -535,7 +537,8 @@ uv sync --group dev → ruff check → ruff format --check → pytest -q
 | `ModuleNotFoundError: healthcare_fraud` | Paquete no instalado o entorno incorrecto | Ejecutar `uv sync --group dev` desde la raíz del repo; nunca usar `python` directamente, usar `uv run python` |
 | `kaggle.rest.ApiException: 401` | `kaggle.json` con credenciales incorrectas o expiradas | Generar nuevo token en Kaggle Settings → API y recrear el archivo (Fase 01 Paso 2-3) |
 | `FileNotFoundError: kaggle.json not found` | Archivo no creado o en ruta incorrecta | Windows: `%USERPROFILE%\.kaggle\kaggle.json`. macOS/Linux: `~/.kaggle/kaggle.json` (Fase 01 Paso 3) |
-| `You must authenticate before you can call the Kaggle API` | Variable de entorno o archivo ausente | Seguir Fase 01 Pasos 2-4 completos; usar `uv run kaggle` nunca `kaggle` directamente |
+| `You must authenticate before you can call the Kaggle API` | `KAGGLE_API_TOKEN` no está en la sesión | Ejecutar `$env:KAGGLE_API_TOKEN="KGAT_..."` en PowerShell o `export KAGGLE_API_TOKEN=...` en bash |
+| `ValueError: Missing username in configuration` | Token nuevo (`KGAT_...`) puesto en `kaggle.json` en lugar de env var | No usar `kaggle.json` con tokens nuevos — usar `KAGGLE_API_TOKEN` (Fase 01 Paso 3) |
 | Login de Kaggle queda en loop de reCAPTCHA en Chrome | Conflicto de cookies o extensiones | Usar Microsoft Edge o Firefox; o limpiar cookies de `kaggle.com` en Chrome |
 | `New-Item: A positional parameter cannot be found` | Dos comandos pegados en una sola línea en PowerShell | Ejecutar cada comando de PowerShell por separado, no encadenados en la misma línea |
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
