@@ -317,50 +317,47 @@ con Google o email. El registro es gratuito.
 
 ### Paso 3 — Configurar las credenciales
 
-> El nuevo token de Kaggle (formato `KGAT_...`) se configura como variable de entorno,
-> no como archivo `kaggle.json`. Este es el método recomendado desde 2025.
+> **Cada integrante del equipo debe completar este paso con su propia cuenta de Kaggle.**
+> El nuevo token (`KGAT_...`) se configura como variable de entorno, no como archivo.
+> Nunca compartir tokens entre compañeros ni commitearlos al repositorio.
 
-Verificar si ya está configurado:
+**Verificar primero si ya está configurado:**
 
-**macOS / Linux:**
+macOS / Linux:
 ```bash
 echo $KAGGLE_API_TOKEN
 ```
 
-**Windows PowerShell:**
+Windows PowerShell:
 ```powershell
 echo $env:KAGGLE_API_TOKEN
 ```
 
-Si muestra el token, saltar al Paso 4.
+Si muestra el token (`KGAT_...`), saltar al Paso 4.
 
-Si no está configurado, seguir estos pasos con el token copiado en el Paso 2:
+Si no muestra nada, configurarlo con el token copiado en el Paso 2:
 
-**macOS / Linux — agregar al archivo `.env` del proyecto:**
+**macOS / Linux:**
 ```bash
+# 1. Exportar en la sesión actual
+export KAGGLE_API_TOKEN=KGAT_TU_TOKEN
+
+# 2. Agregar al .env del proyecto para que persista en Python
 echo 'KAGGLE_API_TOKEN=KGAT_TU_TOKEN' >> .env
 ```
 
-**macOS / Linux — y también exportar en la sesión actual:**
-```bash
-export KAGGLE_API_TOKEN=KGAT_TU_TOKEN
-```
-
-**Windows PowerShell — configurar permanentemente para el usuario:**
+**Windows PowerShell** (ejecutar cada comando por separado):
 ```powershell
+# 1. Configurar permanentemente para el usuario de Windows
 [System.Environment]::SetEnvironmentVariable("KAGGLE_API_TOKEN", "KGAT_TU_TOKEN", "User")
 ```
-
-**Windows PowerShell — y también en la sesión actual:**
 ```powershell
+# 2. Activar en la sesión actual sin cerrar el terminal
 $env:KAGGLE_API_TOKEN = "KGAT_TU_TOKEN"
 ```
-
-**Windows y macOS/Linux — agregar al archivo `.env` del proyecto:**
-
-Abrir `.env` (crearlo desde `.env.example` si no existe) y agregar:
-```
-KAGGLE_API_TOKEN=KGAT_TU_TOKEN
+```powershell
+# 3. Agregar al .env del proyecto (crearlo si no existe)
+Add-Content -Path ".env" -Value "KAGGLE_API_TOKEN=KGAT_TU_TOKEN"
 ```
 
 Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 2.
@@ -375,7 +372,7 @@ uv run kaggle datasets list --search "healthcare fraud"
 ```
 
 Esperado: lista de datasets sin error de autenticación. Si aparece `401` o
-`You must authenticate`, revisar que `kaggle.json` tiene el formato correcto (Paso 3).
+`You must authenticate`, verificar que `KAGGLE_API_TOKEN` está configurado (Paso 3).
 
 ---
 
@@ -394,7 +391,18 @@ uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dat
 uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dataset(); [print(f'{n}: {df.shape[0]:,} filas x {df.shape[1]} cols') for n, df in dfs.items()]"
 ```
 
-Tablas esperadas: `beneficiary`, `inpatient`, `outpatient`, `labels_train`, `labels_test`.
+Tablas esperadas y dimensiones de referencia:
+
+| Tabla | Filas | Columnas | Descripción |
+|-------|-------|----------|-------------|
+| `labels_train` | 5,410 | 2 | Proveedores con etiqueta `PotentialFraud` |
+| `labels_test` | 1,353 | 1 | Proveedores sin etiqueta (para inferencia) |
+| `beneficiary` | ~63,000+ | 25 | Datos demográficos de beneficiarios (split train) |
+| `inpatient` | ~9,500+ | 30 | Reclamaciones hospitalarias (split train) |
+| `outpatient` | ~125,000+ | 27 | Reclamaciones ambulatorias (split train) |
+
+Los archivos de test clínico (`Test_Beneficiary`, `Test_Inpatient`, `Test_Outpatient`) se
+omiten intencionalmente — no tienen etiquetas de fraude y se usan en Fase 04 (inferencia).
 
 ---
 
@@ -541,6 +549,8 @@ uv sync --group dev → ruff check → ruff format --check → pytest -q
 | `ValueError: Missing username in configuration` | Token nuevo (`KGAT_...`) puesto en `kaggle.json` en lugar de env var | No usar `kaggle.json` con tokens nuevos — usar `KAGGLE_API_TOKEN` (Fase 01 Paso 3) |
 | Login de Kaggle queda en loop de reCAPTCHA en Chrome | Conflicto de cookies o extensiones | Usar Microsoft Edge o Firefox; o limpiar cookies de `kaggle.com` en Chrome |
 | `New-Item: A positional parameter cannot be found` | Dos comandos pegados en una sola línea en PowerShell | Ejecutar cada comando de PowerShell por separado, no encadenados en la misma línea |
+| `Multiple files match key 'beneficiary'; skipping Train_...` | Archivos `Test_` cargados antes que `Train_` por orden alfabético | Corregido en `load.py` — los patrones ahora son específicos para el split train |
+| Token de Kaggle no persiste entre sesiones de PowerShell | `$env:` solo dura la sesión actual | Usar `[System.Environment]::SetEnvironmentVariable(..., "User")` y agregar al `.env` |
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
 | `prefect.exceptions.MissingContextError` | Flow ejecutado directamente | Usar `uv run python main.py`, no `pipeline.py` |
 | `mlflow.exceptions.MlflowException: Run not found` | `mlflow.db` eliminado o ruta distinta | Verificar `MLFLOW_TRACKING_URI` en `.env` |
