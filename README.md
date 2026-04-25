@@ -271,7 +271,17 @@ uv run pytest -q
 
 ---
 
-## Fase 01 — Descarga del dataset
+## Fase 01 — EDA y carga de datos
+
+### Módulos implementados
+
+| Módulo | Responsabilidad |
+|--------|----------------|
+| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv |
+| `src/healthcare_fraud/data/load.py` | Autenticación Kaggle, descarga, discovery dinámico de CSVs |
+| `src/healthcare_fraud/data/validate.py` | Validación de esquema, nulos y reglas de negocio por tabla |
+| `src/healthcare_fraud/data/clean.py` | Limpieza, encoding categórico, parseo de fechas, cast de tipos |
+| `notebooks/01_eda.ipynb` | EDA completo: distribuciones, nulos, correlaciones, desbalance |
 
 ### Paso 1 — Obtener credenciales de Kaggle
 
@@ -300,21 +310,45 @@ uv run kaggle datasets list --search "healthcare fraud"
 # Debe listar resultados sin error 401
 ```
 
-### Paso 4 — Descargar el dataset
+### Paso 4 — Descargar y cargar el dataset
+
+La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs automáticamente.
+Si los archivos ya existen en `data/raw/`, reutiliza los locales sin descargar de nuevo.
 
 ```bash
 uv run python -c "
-from kaggle.api.kaggle_api_extended import KaggleApiExtended
-api = KaggleApiExtended()
-api.authenticate()
-api.dataset_download_files(
-    'rohitrox/healthcare-provider-fraud-detection-analysis',
-    path='data/raw',
-    unzip=True
-)
-print('Dataset descargado en data/raw/')
+from healthcare_fraud.data import load_dataset
+dfs = load_dataset()
+for name, df in dfs.items():
+    print(f'{name}: {df.shape[0]:,} filas x {df.shape[1]} columnas')
 "
 ```
+
+Tablas esperadas: `beneficiary`, `inpatient`, `outpatient`, `labels_train`, `labels_test`.
+
+### Paso 5 — Validar y limpiar las tablas
+
+```bash
+uv run python -c "
+from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe
+dfs_raw = load_dataset()
+for name, df in dfs_raw.items():
+    validated = validate_dataframe(df, name)
+    cleaned = clean_dataframe(validated, name)
+    print(f'{name}: {cleaned.shape[0]:,} filas x {cleaned.shape[1]} columnas — OK')
+"
+```
+
+### Paso 6 — Ejecutar el notebook EDA
+
+Requiere haber completado los pasos 4 y 5 (datos descargados en `data/raw/`).
+
+```bash
+uv run jupyter notebook notebooks/01_eda.ipynb
+```
+
+Ejecutar todas las celdas en orden. El notebook cubre: dimensiones de tablas, desbalance de
+clases, distribuciones de montos, análisis de nulos, correlaciones y distribución geográfica.
 
 ---
 
@@ -376,6 +410,52 @@ uv run pytest tests/unit/test_data.py -v  # test específico
 
 ---
 
+## Tests
+
+El proyecto usa **pytest** con fixtures sintéticos; los tests unitarios no requieren
+datos reales ni conexión a Kaggle.
+
+### Estructura
+
+```
+tests/
+├── unit/
+│   ├── test_data.py        # validate_dataframe y clean_dataframe (11 tests)
+│   └── ...                 # fases siguientes agregan test_features.py, test_models.py
+└── integration/
+    └── test_pipeline.py    # Fase 03 — prueba del flujo Prefect completo
+```
+
+### Ejecución
+
+```bash
+# Todos los tests
+uv run pytest -q
+
+# Solo tests unitarios del módulo de datos (Fase 01)
+uv run pytest tests/unit/test_data.py -v
+
+# Con reporte de cobertura
+uv run pytest --cov=healthcare_fraud tests/unit/ -q
+```
+
+### Cobertura actual (Fase 01)
+
+| Módulo | Tests | Qué se verifica |
+|--------|-------|----------------|
+| `data/validate.py` | 5 | columnas requeridas, montos negativos, valores inválidos en PotentialFraud |
+| `data/clean.py` | 6 | encoding Gender/PotentialFraud, parseo DOB, cast float32, drop columnas nulas, inmutabilidad |
+
+### CI
+
+Cada push y PR a `main` ejecuta automáticamente en GitHub Actions:
+
+```
+uv sync --group dev → ruff check → ruff format --check → pytest -q
+```
+
+---
+
 ## Errores conocidos
 
 | Error | Causa probable | Solución |
@@ -385,7 +465,8 @@ uv run pytest tests/unit/test_data.py -v  # test específico
 | `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
 | `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
 | `ModuleNotFoundError: healthcare_fraud` | Proyecto no instalado | Ejecutar `uv sync` desde la raíz del repo |
-| `kaggle.rest.ApiException: 401` | `kaggle.json` en ruta incorrecta o sin permisos | Verificar `~/.kaggle/kaggle.json` y permisos 600 en macOS/Linux |
+| `kaggle.rest.ApiException: 401` | `kaggle.json` en ruta incorrecta o sin permisos | macOS/Linux: `~/.kaggle/kaggle.json` con `chmod 600`. Windows: `%USERPROFILE%\.kaggle\kaggle.json` |
+| `FileNotFoundError: kaggle.json not found` | Función `authenticate_kaggle()` no encontró el archivo | Seguir el Paso 2 de Fase 01 para ubicar `kaggle.json` |
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
 | `prefect.exceptions.MissingContextError` | Flow ejecutado directamente | Usar `uv run python main.py`, no `pipeline.py` |
 | `mlflow.exceptions.MlflowException: Run not found` | `mlflow.db` eliminado o ruta distinta | Verificar `MLFLOW_TRACKING_URI` en `.env` |
