@@ -1,203 +1,660 @@
-# 🚀 Detección de Fraude en Salud - Proyecto MLOps
+# fraude-mlops
 
-## 📌 Descripción General
-
-Este proyecto implementa un **pipeline completo de MLOps** para la detección de fraude en reclamaciones del sector salud utilizando técnicas de Machine Learning.
-
-El sistema simula un entorno real de producción e incluye:
-
-* Ingesta y procesamiento de datos (ETL)
-* Ingeniería de características
-* Entrenamiento y evaluación de modelos
-* Seguimiento de experimentos con MLflow
-* Orquestación de procesos con Prefect
-* Despliegue del modelo mediante API (FastAPI)
-* Monitoreo del rendimiento del modelo
+Pipeline de MLOps para detección de fraude en reclamaciones del sector salud.
+Proyecto académico final — Curso MLOps, Universidad de Medellín.
 
 ---
 
-## 🎯 Problema de Negocio
+## Problema de negocio
 
-El fraude en sistemas de salud genera pérdidas millonarias cada año.
+El fraude en sistemas de salud genera pérdidas millonarias cada año. Este proyecto
+construye un pipeline completo de Machine Learning para identificar reclamaciones
+médicas potencialmente fraudulentas, con el objetivo de reducir pérdidas económicas
+y mejorar los procesos de auditoría.
 
-Este proyecto busca:
-
-> Identificar reclamaciones médicas potencialmente fraudulentas para reducir pérdidas económicas y mejorar los procesos de auditoría.
-
----
-
-## 📊 Dataset
-
-Fuente: Kaggle - Healthcare Fraud Detection Dataset
-
-El dataset contiene múltiples entidades:
-
-* Pacientes
-* Proveedores
-* Reclamaciones (claims)
-* Pagos
-
-Esto permite simular un sistema real con múltiples relaciones entre datos.
+- Tarea: clasificación binaria (`1` = fraude, `0` = legítimo)
+- Métricas prioritarias: Recall, F1-score, ROC-AUC
 
 ---
 
-## 🧠 Objetivo del Modelo
+## Arquitectura
 
-Predecir si una reclamación es fraudulenta:
-
-* `1` → Fraude
-* `0` → No fraude
+```
+Datos Kaggle (CSV)
+      |
+      v
+ data/raw/          <- descarga via Kaggle API
+      |
+      v
+ data/ (ETL)        <- carga, validación y limpieza
+      |
+      v
+ features/          <- ingeniería de características
+      |
+      v
+ models/            <- entrenamiento XGBoost + Optuna
+      |
+      v
+ MLflow             <- tracking de experimentos y model registry
+      |
+      v
+ pipelines/         <- orquestación con Prefect
+      |
+      v
+ api/               <- FastAPI REST (predict, batch, health)
+      |
+      v
+ monitoring/        <- detección de drift y registro de predicciones
+```
 
 ---
 
-## 🏗️ Arquitectura del Proyecto
+## Requisitos del sistema
+
+| Herramienta    | Versión mínima | Verificación           | Necesario desde |
+|----------------|----------------|------------------------|-----------------|
+| Git            | 2.40+          | `git --version`        | Fase 00         |
+| Python         | 3.11           | `python --version`     | Fase 00         |
+| uv             | 0.4+           | `uv --version`         | Fase 00         |
+| Docker Desktop | 24+            | `docker --version`     | Fase 04         |
+
+---
+
+## Fase 00 — Configuración del entorno
+
+> **Convención para todas las fases:** antes de instalar cualquier herramienta,
+> ejecutar el comando de verificación indicado. Si la versión mostrada cumple el
+> requisito mínimo, saltar directamente al siguiente paso. Este patrón aplica en
+> todas las fases del proyecto y en todos los sistemas operativos.
+
+### Paso 1 — Instalar Git
+
+Verificar si ya está instalado:
 
 ```bash
-data → ETL → features → modelo → MLflow → API → monitoreo
+git --version
 ```
 
-### Estructura del repositorio
+Si el comando no existe o la versión es inferior a 2.40, instalar:
 
-```text
-fraude-mlops/
-├── data/
-│   ├── raw/
-│   ├── interim/
-│   └── processed/
-├── notebooks/
-│   ├── 01_eda.ipynb
-│   ├── 02_baseline.ipynb
-│   └── 03_experiments.ipynb
-├── src/
-│   └── healthcare_fraud/
-│       ├── __init__.py
-│       ├── config.py
-│       ├── data/
-│       ├── features/
-│       ├── models/
-│       ├── pipelines/
-│       ├── api/
-│       └── monitoring/
-├── tests/
-│   ├── unit/
-│   └── integration/
-├── models/
-├── logs/
-├── .gitignore
-├── README.md
-└── pyproject.toml
+**macOS — opción A (Xcode Command Line Tools, incluye git):**
+```bash
+xcode-select --install
+```
+
+**macOS — opción B (Homebrew):**
+```bash
+brew install git
+```
+
+**Windows (PowerShell — ejecutar como administrador):**
+```powershell
+winget install --id Git.Git -e --source winget
+```
+
+Cerrar y abrir una terminal nueva tras la instalación. Verificar:
+
+```bash
+git --version
+# Esperado: git version 2.x.x
 ```
 
 ---
 
+### Paso 2 — Instalar Python 3.11
 
+Verificar si ya está instalado:
 
-## ⚙️ Tecnologías Utilizadas
+```bash
+python --version
+```
 
-* Python
-* Pandas / NumPy
-* Scikit-learn
-* MLflow
-* Prefect
-* FastAPI
-* Uvicorn
-* SHAP (interpretabilidad)
+Si la versión es inferior a 3.11 o el comando no existe, instalar:
+
+**macOS — opción A (Homebrew):**
+```bash
+brew install python@3.11
+```
+
+**macOS — opción B (instalador oficial):**
+
+Descargar desde `https://www.python.org/downloads/release/python-3110/`,
+ejecutar el archivo `.pkg` y seguir el asistente de instalación.
+
+**Windows (PowerShell — ejecutar como administrador):**
+```powershell
+winget install --id Python.Python.3.11 -e --source winget
+```
+
+Cerrar y abrir una terminal nueva tras la instalación. Verificar:
+
+```bash
+python --version
+# Esperado: Python 3.11.x
+```
 
 ---
 
-## 🚀 Instalación
+### Paso 3 — Instalar uv
+
+Verificar si ya está instalado:
+
+```bash
+uv --version
+```
+
+Si el comando retorna `uv 0.4.x` o superior, saltar al Paso 4.
+
+Si no está instalado:
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.zshrc   # o ~/.bashrc según tu shell
+```
+
+**Windows (PowerShell — ejecutar como administrador):**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Cerrar y abrir una terminal nueva para que el PATH se actualice. Verificar:
+
+```bash
+uv --version
+# Esperado: uv 0.4.x o superior
+```
+
+---
+
+### Paso 4 — Clonar el repositorio
 
 ```bash
 git clone https://github.com/sergioduran93/fraude-mlops.git
 cd fraude-mlops
-
-python -m venv venv
-venv\Scripts\activate  # Windows
-
-pip install -e ".[dev]"
 ```
 
 ---
 
-## ▶️ Ejecución del Proyecto
+### Paso 5 — Configurar identidad git local
 
-### 1. Procesamiento de datos
-
-Los módulos viven en el paquete `healthcare_fraud` bajo `src/` (por ejemplo `healthcare_fraud.data`). Los comandos concretos se definirán al cablear el pipeline.
-
-### 2. Entrenamiento del modelo
-
-Los puntos de entrada de entrenamiento estarán en `healthcare_fraud.models` y flujos en `healthcare_fraud.pipelines`.
-
-### 3. Ejecutar MLflow
+Cada integrante debe ejecutar esto dentro del directorio del proyecto.
+Este comando no afecta la configuración global de git en el equipo.
 
 ```bash
-mlflow ui
+git config --local user.email "tu-email@gmail.com"
+git config --local user.name "Tu Nombre Completo"
 ```
 
-Acceder en:
-
-```
-http://localhost:5000
-```
-
----
-
-## 🌐 Despliegue del Modelo (API)
+Verificar:
 
 ```bash
-uvicorn healthcare_fraud.api.main:app --reload
-```
-
-Endpoint ejemplo:
-
-```
-POST /predict
+git config --local user.email
+git config --local user.name
 ```
 
 ---
 
-## 📈 Métricas de Evaluación
+### Paso 6 — Instalar dependencias del proyecto
 
-Debido a la naturaleza del problema, se priorizan:
+```bash
+uv sync --group dev
+```
 
-* Recall (detección de fraude)
-* F1-score
-* ROC-AUC
+`uv sync` crea el entorno virtual `.venv/`, instala todas las dependencias de
+`pyproject.toml` y registra el paquete `healthcare_fraud` como editable en el
+entorno. Esto permite importarlo directamente con `uv run python` sin configurar
+`PYTHONPATH`. No es necesario activar el entorno; basta con el prefijo `uv run`.
 
----
+**Configurar el intérprete en el IDE (obligatorio para autocompletado):**
 
-## 📊 Monitoreo
+VS Code — abrir la paleta de comandos (`Ctrl+Shift+P` / `Cmd+Shift+P`),
+seleccionar `Python: Select Interpreter` y elegir la ruta:
 
-El sistema permite:
+```
+# macOS / Linux:
+.venv/bin/python
 
-* Seguimiento de métricas del modelo
-* Detección de data drift
-* Reentrenamiento futuro
+# Windows:
+.venv\Scripts\python.exe
+```
 
----
-
-## 💡 Valor del Proyecto
-
-Este proyecto demuestra:
-
-* Implementación real de MLOps
-* Integración de múltiples herramientas
-* Resolución de un problema de negocio crítico
-* Capacidad de llevar modelos a producción
+PyCharm — ir a `Settings > Project > Python Interpreter > Add Interpreter > Existing`,
+seleccionar la misma ruta indicada arriba.
 
 ---
 
-## 👨‍💻 Autor
+### Paso 7 — Configurar variables de entorno
 
-**Sergio Andrés Durán Vásquez**
-**Ivan Stiven Castrillon**
-**Diego Castaneda**
+**macOS / Linux:**
+```bash
+cp .env.example .env
+```
+
+**Windows CMD:**
+```cmd
+copy .env.example .env
+```
+
+**Windows PowerShell:**
+```powershell
+Copy-Item .env.example .env
+```
+
+Abrir `.env` con cualquier editor de texto y completar los valores según el entorno
+local. No modificar `.env.example`.
 
 ---
 
-## 📌 Notas
+### Paso 8 — Instalar hooks de pre-commit
 
-Este proyecto tiene fines académicos y de portafolio, simulando un entorno real de producción en el sector salud.
+```bash
+uv run pre-commit install
+```
+
+Verificar que todos los hooks pasan sin errores:
+
+```bash
+uv run pre-commit run --all-files
+```
 
 ---
+
+### Paso 9 — Verificar la instalación completa
+
+Los tres comandos deben ejecutarse sin errores antes de empezar a desarrollar:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest -q
+```
+
+---
+
+## Fase 01 — EDA y carga de datos
+
+### Módulos implementados
+
+| Módulo | Responsabilidad |
+|--------|----------------|
+| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv |
+| `src/healthcare_fraud/data/load.py` | Autenticación Kaggle, descarga, discovery dinámico de CSVs |
+| `src/healthcare_fraud/data/validate.py` | Validación de esquema, nulos y reglas de negocio por tabla |
+| `src/healthcare_fraud/data/clean.py` | Limpieza, encoding categórico, parseo de fechas, cast de tipos |
+| `notebooks/01_eda.ipynb` | EDA completo: distribuciones, nulos, correlaciones, desbalance |
+
+---
+
+### Paso 1 — Crear cuenta en Kaggle (si no se tiene)
+
+Verificar si ya se tiene cuenta:
+
+```
+Abrir https://www.kaggle.com en el navegador
+```
+
+Si carga el dashboard personal, ya se tiene cuenta — saltar al Paso 2.
+Si redirige a login, registrarse con Google o email (gratuito).
+
+> Si Chrome queda en loop de reCAPTCHA al iniciar sesión, usar **Microsoft Edge** o **Firefox**.
+
+---
+
+### Paso 2 — Obtener el username de Kaggle
+
+El username es el identificador de la cuenta y es necesario para configurar las credenciales.
+
+Verificar el username: una vez dentro de Kaggle, mirar la URL del perfil personal:
+
+```
+https://www.kaggle.com/TU_USERNAME
+                        ^^^^^^^^^^^^
+                        Este es el username
+```
+
+También se puede ver haciendo clic en el avatar (esquina superior derecha) — aparece
+debajo del nombre en el menú desplegable.
+
+Ejemplo de username: `diegocastanedaloaiza`, `sduran93`, `iscastrillon`
+
+---
+
+### Paso 3 — Generar el token de la API
+
+> La interfaz actual de Kaggle (2025+) muestra el token en pantalla en lugar de
+> descargarlo como archivo. El token solo se puede ver una vez al generarlo.
+
+1. Dentro de Kaggle, hacer clic en el **avatar** (esquina superior derecha)
+2. Seleccionar **Settings**
+3. Desplazarse hasta la sección **API**
+4. Hacer clic en el botón **Create New Token**
+
+Aparece un modal con este contenido:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Please copy your API token now. You won't be able to   │
+│  view it again.                                         │
+│                                                         │
+│  API TOKEN                                              │
+│  KGAT_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  │
+│                                  [icono copiar]         │
+│                                                         │
+│  To use this token, set the KAGGLE_API_TOKEN variable:  │
+│  export KAGGLE_API_TOKEN=KGAT_xxxx...                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Copiar el token completo** — comienza siempre con `KGAT_` seguido de caracteres
+alfanuméricos. Ejemplo del formato:
+
+```
+KGAT_634cc06f31a57d8a5c47103ec093a759
+```
+
+> Si se cierra el modal sin copiarlo: volver a Settings → API → clic en
+> **Expire API Token** → luego **Create New Token** para generar uno nuevo.
+
+---
+
+### Paso 4 — Configurar las credenciales
+
+> **Cada integrante debe completar este paso con su propia cuenta.**
+> Nunca compartir tokens ni commitearlos — el archivo `.env` está en `.gitignore`.
+
+**Verificar primero si ya está configurado:**
+
+macOS / Linux:
+```bash
+echo $KAGGLE_API_TOKEN
+```
+
+Windows PowerShell:
+```powershell
+echo $env:KAGGLE_API_TOKEN
+```
+
+Si muestra el token (`KGAT_...`), saltar al Paso 5.
+
+Si no muestra nada, configurar con el token del Paso 3:
+
+**macOS / Linux:**
+```bash
+# Activar en la sesión actual
+export KAGGLE_API_TOKEN=KGAT_TU_TOKEN
+
+# Persistir en el .env del proyecto (Python lo lee via dotenv)
+echo 'KAGGLE_API_TOKEN=KGAT_TU_TOKEN' >> .env
+```
+
+**Windows PowerShell** (un comando por vez):
+```powershell
+# Persistir permanentemente para el usuario de Windows
+[System.Environment]::SetEnvironmentVariable("KAGGLE_API_TOKEN", "KGAT_TU_TOKEN", "User")
+```
+```powershell
+# Activar en la sesión actual (sin cerrar la terminal)
+$env:KAGGLE_API_TOKEN = "KGAT_TU_TOKEN"
+```
+```powershell
+# Agregar al .env del proyecto
+Add-Content -Path ".env" -Value "KAGGLE_API_TOKEN=KGAT_TU_TOKEN"
+```
+
+Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 3.
+
+---
+
+### Paso 5 — Verificar autenticación
+
+```bash
+uv run kaggle datasets list --search "healthcare fraud"
+```
+
+Esperado: lista de datasets como esta:
+
+```
+ref                                                    title                                    ...
+rohitrox/healthcare-provider-fraud-detection-analysis  Healthcare Provider Fraud Detection ...
+```
+
+Si aparece `401` o `You must authenticate`, verificar que `KAGGLE_API_TOKEN` está
+configurado (Paso 4) y que la terminal fue abierta después de configurar la variable.
+
+---
+
+### Paso 6 — Descargar y cargar el dataset
+
+La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs
+automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+
+**macOS / Linux:**
+```bash
+uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dataset(); [print(f'{n}: {df.shape[0]:,} filas x {df.shape[1]} cols') for n, df in dfs.items()]"
+```
+
+**Windows PowerShell:**
+```powershell
+uv run python -c "from healthcare_fraud.data import load_dataset; dfs = load_dataset(); [print(f'{n}: {df.shape[0]:,} filas x {df.shape[1]} cols') for n, df in dfs.items()]"
+```
+
+Tablas esperadas y dimensiones de referencia:
+
+| Tabla | Filas | Columnas | Descripción |
+|-------|-------|----------|-------------|
+| `labels_train` | 5,410 | 2 | Proveedores con etiqueta `PotentialFraud` |
+| `labels_test` | 1,353 | 1 | Proveedores sin etiqueta (para inferencia) |
+| `beneficiary` | 138,556 | 25 | Datos demográficos de beneficiarios (split train) |
+| `inpatient` | 40,474 | 30 | Reclamaciones hospitalarias (split train) |
+| `outpatient` | 517,737 | 27 | Reclamaciones ambulatorias (split train) |
+
+Los archivos de test clínico (`Test_Beneficiary`, `Test_Inpatient`, `Test_Outpatient`) se
+omiten intencionalmente — no tienen etiquetas de fraude y se usan en Fase 04 (inferencia).
+
+---
+
+### Paso 7 — Validar y limpiar las tablas
+
+Verificar primero que los datos están descargados:
+
+**macOS / Linux:**
+```bash
+ls data/raw/*.csv
+```
+
+**Windows PowerShell:**
+```powershell
+Get-ChildItem data\raw\*.csv | Select-Object Name
+```
+
+Debe listar al menos 8 archivos CSV. Si no existen, volver al Paso 5.
+
+Ejecutar validación y limpieza:
+
+**macOS / Linux y Windows PowerShell:**
+```bash
+uv run python -c "from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe; [print(f'{n}: OK -> {clean_dataframe(validate_dataframe(df,n),n).shape}') for n,df in load_dataset().items()]"
+```
+
+Esperado — cada tabla imprime `OK` con sus dimensiones limpias:
+
+```
+labels_test:  OK (1353, 1)
+labels_train: OK (5410, 2)
+beneficiary:  OK (138556, 24)
+inpatient:    OK (40474, 23)
+outpatient:   OK (517737, 14)
+```
+
+> `clean.py` elimina columnas con más del 80% de nulos. `outpatient` tiene 57.9% de nulos
+> global — el warning `High null percentage` es esperado e informativo, no es un error.
+> Las columnas de diagnósticos secundarios y procedimientos son las más afectadas.
+
+---
+
+### Paso 8 — Ejecutar el notebook EDA
+
+Verificar que los datos están en `data/raw/` (Paso 6 completado) antes de continuar.
+
+Abrir el notebook:
+
+**macOS / Linux y Windows PowerShell:**
+```bash
+uv run jupyter notebook notebooks/01_eda.ipynb
+```
+
+Se abre el navegador automáticamente. En la barra de menú del notebook:
+
+1. Hacer clic en **Kernel**
+2. Seleccionar **Restart & Run All**
+3. Confirmar en el diálogo que aparece
+
+Verificar que ninguna celda muestra fondo rojo ni `Error` en el output.
+
+El notebook cubre:
+- Dimensiones y tipos de cada tabla
+- Desbalance de clases (`PotentialFraud`: ratio de fraude)
+- Distribuciones de montos de reclamación (inpatient y outpatient)
+- Análisis de nulos por columna
+- Heatmap de correlaciones (inpatient)
+- Distribución geográfica por estado (beneficiary)
+
+---
+
+## Ejecución del pipeline (Fase 03+)
+
+```bash
+# Ejecución única
+uv run python main.py
+
+# Despliegue programado con Prefect
+uv run python deploy.py
+```
+
+---
+
+## Servicios locales
+
+```bash
+# MLflow UI — tracking de experimentos
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
+# Acceder en: http://localhost:5000
+
+# Prefect UI — monitoreo de flujos
+uv run prefect server start
+# Acceder en: http://localhost:4200
+```
+
+---
+
+## API con Docker (Fase 04+)
+
+```bash
+# Construir y levantar
+docker compose up --build
+
+# Solo levantar (imagen ya construida)
+docker compose up
+
+# Detener
+docker compose down
+```
+
+Endpoints disponibles:
+
+- `GET  /health` — estado del servicio y modelo cargado
+- `POST /predict` — predicción individual
+- `POST /predict/batch` — predicción en lote
+
+---
+
+## Comandos de desarrollo diario
+
+```bash
+uv run ruff check .                       # linter
+uv run ruff format .                      # aplicar formato
+uv run pytest -q                          # todos los tests
+uv run pytest tests/unit/test_data.py -v  # test específico
+```
+
+---
+
+## Tests
+
+El proyecto usa **pytest** con fixtures sintéticos; los tests unitarios no requieren
+datos reales ni conexión a Kaggle.
+
+### Estructura
+
+```
+tests/
+├── unit/
+│   ├── test_data.py        # validate_dataframe y clean_dataframe (11 tests)
+│   └── ...                 # fases siguientes agregan test_features.py, test_models.py
+└── integration/
+    └── test_pipeline.py    # Fase 03 — prueba del flujo Prefect completo
+```
+
+### Ejecución
+
+```bash
+# Todos los tests
+uv run pytest -q
+
+# Solo tests unitarios del módulo de datos (Fase 01)
+uv run pytest tests/unit/test_data.py -v
+
+# Con reporte de cobertura
+uv run pytest --cov=healthcare_fraud tests/unit/ -q
+```
+
+### Cobertura actual (Fase 01)
+
+| Módulo | Tests | Qué se verifica |
+|--------|-------|----------------|
+| `data/validate.py` | 5 | columnas requeridas, montos negativos, valores inválidos en PotentialFraud |
+| `data/clean.py` | 6 | encoding Gender/PotentialFraud, parseo DOB, cast float32, drop columnas nulas, inmutabilidad |
+
+### CI
+
+Cada push y PR a `main` ejecuta automáticamente en GitHub Actions:
+
+```
+uv sync --group dev → ruff check → ruff format --check → pytest -q
+```
+
+---
+
+## Errores conocidos
+
+| Error | Causa probable | Solución |
+|---|---|---|
+| `Failed to build llvmlite` durante `uv sync` | `shap` arrastra `llvmlite==0.36.0` incompatible con Python 3.11 | `shap` se instala solo en Fase 05: `uv sync --group monitoring` |
+| `git: command not found` | Git no instalado | Seguir el Paso 1 de Fase 00 |
+| `python: command not found` | Python no instalado o no en PATH | Seguir el Paso 2 de Fase 00 |
+| `uv: command not found` | uv no está en el PATH | Abrir terminal nueva tras instalar uv |
+| `ModuleNotFoundError: healthcare_fraud` | Paquete no instalado o entorno incorrecto | Ejecutar `uv sync --group dev` desde la raíz del repo; nunca usar `python` directamente, usar `uv run python` |
+| `kaggle.rest.ApiException: 401` | `kaggle.json` con credenciales incorrectas o expiradas | Generar nuevo token en Kaggle Settings → API y recrear el archivo (Fase 01 Paso 2-3) |
+| `FileNotFoundError: kaggle.json not found` | Archivo no creado o en ruta incorrecta | Windows: `%USERPROFILE%\.kaggle\kaggle.json`. macOS/Linux: `~/.kaggle/kaggle.json` (Fase 01 Paso 3) |
+| `You must authenticate before you can call the Kaggle API` | `KAGGLE_API_TOKEN` no está en la sesión | Ejecutar `$env:KAGGLE_API_TOKEN="KGAT_..."` en PowerShell o `export KAGGLE_API_TOKEN=...` en bash |
+| `ValueError: Missing username in configuration` | Token nuevo (`KGAT_...`) puesto en `kaggle.json` en lugar de env var | No usar `kaggle.json` con tokens nuevos — usar `KAGGLE_API_TOKEN` (Fase 01 Paso 3) |
+| Login de Kaggle queda en loop de reCAPTCHA en Chrome | Conflicto de cookies o extensiones | Usar Microsoft Edge o Firefox; o limpiar cookies de `kaggle.com` en Chrome |
+| `New-Item: A positional parameter cannot be found` | Dos comandos pegados en una sola línea en PowerShell | Ejecutar cada comando de PowerShell por separado, no encadenados en la misma línea |
+| `Multiple files match key 'beneficiary'; skipping Train_...` | Archivos `Test_` cargados antes que `Train_` por orden alfabético | Corregido en `load.py` — los patrones ahora son específicos para el split train |
+| Token de Kaggle no persiste entre sesiones de PowerShell | `$env:` solo dura la sesión actual | Usar `[System.Environment]::SetEnvironmentVariable(..., "User")` y agregar al `.env` |
+| `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
+| `prefect.exceptions.MissingContextError` | Flow ejecutado directamente | Usar `uv run python main.py`, no `pipeline.py` |
+| `mlflow.exceptions.MlflowException: Run not found` | `mlflow.db` eliminado o ruta distinta | Verificar `MLFLOW_TRACKING_URI` en `.env` |
+| Pre-commit falla con `gitleaks` | Posible secreto detectado | Revisar `git diff`, nunca commitear credenciales |
+| `ruff: E501 line too long` | Línea supera 100 caracteres | Ejecutar `uv run ruff format .` |
+| `docker: 'compose' is not a docker command` | Docker Desktop no instalado o versión antigua | Instalar Docker Desktop 4.x+ |
+
+
+---
+
+## Integrantes
+
+- Diego Castaneda
+- Sergio Andrés Durán Vásquez
+- Ivan Stiven Castrillon
