@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import mlflow
@@ -22,11 +21,7 @@ logger = logging.getLogger(__name__)
 def setup_mlflow() -> None:
     """Configure MLflow tracking URI, experiment and silence Optuna output."""
     mlflow.set_tracking_uri(SETTINGS.mlflow_tracking_uri)
-    artifact_uri = f"file:///{Path(SETTINGS.mlruns_dir).as_posix()}"
-    mlflow.set_experiment(
-        SETTINGS.mlflow_experiment,
-        artifact_location=artifact_uri,
-    )
+    mlflow.set_experiment(SETTINGS.mlflow_experiment)
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
