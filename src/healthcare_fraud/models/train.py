@@ -14,14 +14,14 @@ from xgboost import XGBClassifier
 
 from healthcare_fraud.config import SETTINGS
 from healthcare_fraud.models.evaluate import evaluate_model
+from healthcare_fraud.models.registry import setup_mlflow as configure_mlflow_experiment
 
 logger = logging.getLogger(__name__)
 
 
 def setup_mlflow() -> None:
     """Configure MLflow tracking URI, experiment and silence Optuna output."""
-    mlflow.set_tracking_uri(SETTINGS.mlflow_tracking_uri)
-    mlflow.set_experiment(SETTINGS.mlflow_experiment)
+    configure_mlflow_experiment(SETTINGS.mlflow_experiment)
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 

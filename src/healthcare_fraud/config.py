@@ -33,7 +33,11 @@ class Settings:
     train_ratio: float = float(os.getenv("TRAIN_RATIO", "0.8"))
     optuna_trials: int = int(os.getenv("OPTUNA_TRIALS", "20"))
     random_state: int = int(os.getenv("RANDOM_STATE", "42"))
-    kaggle_dataset: str = "rohitrox/healthcare-provider-fraud-detection-analysis"
+    # Por defecto: nudratabbas/healthcare-fraud-detection-dataset
+    # https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset
+    kaggle_dataset: str = os.getenv(
+        "KAGGLE_DATASET", "nudratabbas/healthcare-fraud-detection-dataset"
+    )
 
 
 SETTINGS = Settings()
