@@ -27,15 +27,17 @@ class Settings:
     # Default MLflow locations pinned to project root so artifacts and the
     # sqlite db are always created under the project directory.
     _default_mlflow_db = PROJECT_ROOT / "mlflow.db"
-    mlflow_tracking_uri: str = os.getenv(
-        "MLFLOW_TRACKING_URI", f"sqlite:///{_default_mlflow_db.as_posix()}"
-    )
+    mlflow_tracking_uri: str = f"sqlite:///{_default_mlflow_db.as_posix()}"
     mlruns_dir: Path = Path(os.getenv("MLRUNS_DIR", str(PROJECT_ROOT / "mlruns")))
     mlflow_experiment: str = os.getenv("MLFLOW_EXPERIMENT_NAME", "healthcare-fraud-detection")
     train_ratio: float = float(os.getenv("TRAIN_RATIO", "0.8"))
     optuna_trials: int = int(os.getenv("OPTUNA_TRIALS", "20"))
     random_state: int = int(os.getenv("RANDOM_STATE", "42"))
-    kaggle_dataset: str = "rohitrox/healthcare-provider-fraud-detection-analysis"
+    # Por defecto: nudratabbas/healthcare-fraud-detection-dataset
+    # https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset
+    kaggle_dataset: str = os.getenv(
+        "KAGGLE_DATASET", "nudratabbas/healthcare-fraud-detection-dataset"
+    )
 
 
 SETTINGS = Settings()

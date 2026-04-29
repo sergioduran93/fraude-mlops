@@ -47,6 +47,8 @@ Datos Kaggle (CSV)
  monitoring/        <- detección de drift y registro de predicciones
 ```
 
+Guía técnica paso a paso (notebooks, MLflow, Prefect, tests): **[docs/GUIA_TECNICA.md](docs/GUIA_TECNICA.md)**.
+
 ---
 
 ## Requisitos del sistema
@@ -242,7 +244,11 @@ Copy-Item .env.example .env
 ```
 
 Abrir `.env` con cualquier editor de texto y completar los valores según el entorno
-local. No modificar `.env.example`.
+local. Es obligatorio definir `KAGGLE_API_TOKEN` (Settings → API en Kaggle). El slug del
+dataset por defecto es `KAGGLE_DATASET=nudratabbas/healthcare-fraud-detection-dataset`
+([página en Kaggle](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset));
+para usar otro dataset compatible, cambiar solo esa variable. No modificar `.env.example`
+con secretos; mantenerlo como plantilla.
 
 ---
 
@@ -274,11 +280,13 @@ uv run pytest -q
 
 ## Fase 01 — EDA y carga de datos
 
+**Dataset Kaggle (por defecto):** [Healthcare Fraud Detection Dataset](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset) (`nudratabbas/healthcare-fraud-detection-dataset`), configurable con `KAGGLE_DATASET` en `.env`.
+
 ### Módulos implementados
 
 | Módulo | Responsabilidad |
 |--------|----------------|
-| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv |
+| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv (`KAGGLE_DATASET`, etc.) |
 | `src/healthcare_fraud/data/load.py` | Autenticación Kaggle, descarga, discovery dinámico de CSVs |
 | `src/healthcare_fraud/data/validate.py` | Validación de esquema, nulos y reglas de negocio por tabla |
 | `src/healthcare_fraud/data/clean.py` | Limpieza, encoding categórico, parseo de fechas, cast de tipos |
@@ -412,12 +420,14 @@ Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 3.
 uv run kaggle datasets list --search "healthcare fraud"
 ```
 
-Esperado: lista de datasets como esta:
+Esperado: varios datasets, entre ellos el usado en el repo:
 
 ```
 ref                                                    title                                    ...
-rohitrox/healthcare-provider-fraud-detection-analysis  Healthcare Provider Fraud Detection ...
+nudratabbas/healthcare-fraud-detection-dataset         Healthcare Fraud Detection Dataset ...
 ```
+
+(Si el listado cambia, basta con que la búsqueda responda sin error de autenticación.)
 
 Si aparece `401` o `You must authenticate`, verificar que `KAGGLE_API_TOKEN` está
 configurado (Paso 4) y que la terminal fue abierta después de configurar la variable.
@@ -522,6 +532,104 @@ El notebook cubre:
 
 ---
 
+## Fase 02 — Seguimiento de experimentos con MLflow
+
+### Módulos implementados
+
+| Módulo | Responsabilidad |
+|--------|----------------|
+| `src/healthcare_fraud/features/build.py` | Merge de tablas y agregación a nivel Provider (16 features) |
+| `src/healthcare_fraud/features/preprocess.py` | Split estratificado anti-leakage + pipeline sklearn |
+| `src/healthcare_fraud/models/train.py` | XGBoost + Optuna (20 trials) + MLflow nested runs |
+| `src/healthcare_fraud/models/evaluate.py` | Métricas: recall, precision, f1, roc_auc, avg_precision |
+| `src/healthcare_fraud/models/registry.py` | Registro, transición de stage y carga desde MLflow Registry |
+| `notebooks/02_baseline.ipynb` | Modelo baseline con hiperparámetros por defecto |
+| `notebooks/03_experiments.ipynb` | Optimización con Optuna y registro en Model Registry |
+
+---
+
+### Paso 1 — Ejecutar el notebook de experimentos
+
+Verificar que los datos están en `data/raw/` (Fase 01 completada) antes de continuar.
+
+```bash
+uv run jupyter notebook notebooks/03_experiments.ipynb
+```
+
+En la barra de menú del notebook:
+
+1. Hacer clic en **Kernel**
+2. Seleccionar **Restart & Run All**
+3. Confirmar en el diálogo que aparece
+
+El notebook realiza el pipeline completo:
+- Carga y limpieza de las 5 tablas del dataset
+- Construcción de 16 features agregadas a nivel Provider
+- Split estratificado train/val (80/20) por Provider — sin data leakage
+- 20 trials de Optuna con MLflow nested runs (un run hijo por trial)
+- Entrenamiento del modelo final con los mejores hiperparámetros
+- Registro del modelo en MLflow Model Registry en stage `Staging`
+
+Salida esperada al finalizar:
+
+```
+Train: 4328 providers | Fraude: 405 (9.4%)
+Run ID: <uuid>
+Modelo registrado: healthcare-fraud-detector v1
+Stage: Staging
+```
+
+---
+
+### Paso 2 — Verificar experimentos en MLflow UI
+
+Levantar el servidor MLflow desde la raíz del proyecto:
+
+```bash
+uv run mlflow ui --port 5001 --backend-store-uri sqlite:///mlflow.db
+```
+
+Abrir en el navegador: `http://localhost:5001`
+
+> Se recomienda el puerto `5001` en lugar del `5000` por defecto, ya que en Windows 10
+> el puerto 5000 puede estar ocupado por servicios del sistema (IIS, Bonjour, etc.).
+
+En la UI se puede verificar:
+- **Experiments** → `healthcare-fraud-detection` → run padre con 20 runs hijos de Optuna
+- **Models** → `healthcare-fraud-detector` → versión en stage `Staging`
+
+---
+
+### Paso 3 — Smoke test en terminal
+
+Para verificar el pipeline de features sin ejecutar el notebook completo:
+
+**macOS / Linux y Windows PowerShell:**
+```bash
+uv run python -c "
+from healthcare_fraud.data import load_dataset, validate_dataframe, clean_dataframe
+from healthcare_fraud.features import build_features, split_providers
+
+raw = load_dataset()
+clean = {k: clean_dataframe(validate_dataframe(v, k), k) for k, v in raw.items()}
+feat = build_features(clean)
+train_df, val_df = split_providers(feat)
+print(f'Feature matrix: {feat.shape}')
+print(f'Train: {len(train_df)} | Val: {len(val_df)}')
+print(f'Fraude: {feat.PotentialFraud.mean():.1%}')
+"
+```
+
+Salida esperada:
+
+```
+Feature matrix: (5410, 18)
+Train: 4328 | Val: 1082
+Fraude: 9.4%
+```
+
+---
+
 ## Ejecución del pipeline (Fase 03+)
 
 ```bash
@@ -537,14 +645,30 @@ uv run python deploy.py
 ## Servicios locales
 
 ```bash
-# MLflow UI — tracking de experimentos
-uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
-# Acceder en: http://localhost:5000
+# MLflow UI — tracking de experimentos (puerto 5001 recomendado en Windows)
+uv run mlflow ui --port 5001 --backend-store-uri sqlite:///mlflow.db
+# Acceder en: http://localhost:5001
 
 # Prefect UI — monitoreo de flujos
 uv run prefect server start
 # Acceder en: http://localhost:4200
 ```
+
+> Ejecutar siempre desde la raíz del proyecto (`fraude-mlops/`) donde está el archivo
+> `mlflow.db`. Si el archivo no existe, ejecutar primero el notebook `03_experiments.ipynb`.
+
+**Windows — error de página en blanco en la UI de MLflow:**
+
+Si el navegador muestra la página en blanco con el error
+`MIME type ('text/plain') is not executable`, significa que Windows tiene `.js`
+registrado con el tipo MIME incorrecto. Solución (una sola vez, no requiere admin):
+
+```powershell
+reg add "HKEY_CLASSES_ROOT\.js" /v "Content Type" /d "application/javascript" /f
+```
+
+Después de ejecutar el comando, detener el servidor MLflow (`Ctrl+C`), levantarlo
+nuevamente y refrescar el navegador con `Ctrl+Shift+R`.
 
 ---
 
@@ -591,9 +715,12 @@ datos reales ni conexión a Kaggle.
 tests/
 ├── unit/
 │   ├── test_data.py        # validate_dataframe y clean_dataframe (11 tests)
-│   └── ...                 # fases siguientes agregan test_features.py, test_models.py
+│   ├── test_load.py        # discover_csv_files / sin CSV (2 tests)
+│   ├── test_features.py    # build_features, split_providers, prepare_train_val (10 tests)
+│   ├── test_models.py      # evaluate_model, _build_classifier, setup_mlflow (6 tests)
+│   └── test_train.py       # baseline logístico y métricas (2 tests)
 └── integration/
-    └── test_pipeline.py    # Fase 03 — prueba del flujo Prefect completo
+    └── test_api.py         # GET /health (1 test, modelo dummy)
 ```
 
 ### Ejecución
@@ -602,19 +729,25 @@ tests/
 # Todos los tests
 uv run pytest -q
 
-# Solo tests unitarios del módulo de datos (Fase 01)
+# Solo tests de un módulo específico
 uv run pytest tests/unit/test_data.py -v
+uv run pytest tests/unit/test_features.py -v
+uv run pytest tests/unit/test_models.py -v
 
 # Con reporte de cobertura
 uv run pytest --cov=healthcare_fraud tests/unit/ -q
 ```
 
-### Cobertura actual (Fase 01)
+### Cobertura actual (Fases 01 y 02)
 
 | Módulo | Tests | Qué se verifica |
 |--------|-------|----------------|
 | `data/validate.py` | 5 | columnas requeridas, montos negativos, valores inválidos en PotentialFraud |
 | `data/clean.py` | 6 | encoding Gender/PotentialFraud, parseo DOB, cast float32, drop columnas nulas, inmutabilidad |
+| `features/build.py` | 4 | shape a nivel Provider, columnas esperadas, sin duplicados, error en tabla faltante |
+| `features/preprocess.py` | 6 | no-overlap en split, total de filas, error sin target, shapes, ausencia de NaN, no fit en val |
+| `models/evaluate.py` | 3 | claves del dict, valores en [0,1], tipos float |
+| `models/train.py` | 3 | configuración de MLflow, cálculo de scale_pos_weight |
 
 ### CI
 
@@ -646,6 +779,9 @@ uv sync --group dev → ruff check → ruff format --check → pytest -q
 | `OSError: No space left on device` | Dataset ~500 MB | Verificar espacio disponible en disco |
 | `prefect.exceptions.MissingContextError` | Flow ejecutado directamente | Usar `uv run python main.py`, no `pipeline.py` |
 | `mlflow.exceptions.MlflowException: Run not found` | `mlflow.db` eliminado o ruta distinta | Verificar `MLFLOW_TRACKING_URI` en `.env` |
+| MLflow UI muestra página en blanco — `MIME type ('text/plain') is not executable` | Windows registra `.js` como `text/plain`; Chrome y Firefox bloquean el script | Ejecutar `reg add "HKEY_CLASSES_ROOT\.js" /v "Content Type" /d "application/javascript" /f`, reiniciar el servidor MLflow y hacer `Ctrl+Shift+R` en el navegador |
+| MLflow UI en blanco en puerto 5000 | Puerto 5000 ocupado por servicios de Windows (IIS, Bonjour) | Usar `--port 5001` al levantar la UI |
+| `TypeError: set_experiment() got an unexpected keyword argument 'artifact_location'` | `artifact_location` fue eliminado en MLflow 3.x | Corregido en `train.py` — `set_experiment` ya no recibe ese argumento |
 | Pre-commit falla con `gitleaks` | Posible secreto detectado | Revisar `git diff`, nunca commitear credenciales |
 | `ruff: E501 line too long` | Línea supera 100 caracteres | Ejecutar `uv run ruff format .` |
 | `docker: 'compose' is not a docker command` | Docker Desktop no instalado o versión antigua | Instalar Docker Desktop 4.x+ |
