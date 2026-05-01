@@ -19,6 +19,25 @@ META = {
     "language_info": {"name": "python", "version": "3.11.0"},
 }
 
+BOOTSTRAP = """from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+def _find_repo_root(start: Path) -> Path:
+    for candidate in (start, *start.parents):
+        if (candidate / "pyproject.toml").exists() and (candidate / "src" / "healthcare_fraud").exists():
+            return candidate
+    return start
+
+_root = _find_repo_root(Path.cwd().resolve())
+_src = _root / "src"
+if _src.is_dir():
+    sp = str(_src)
+    if sp not in sys.path:
+        sys.path.insert(0, sp)
+"""
+
 
 def save(name: str, cells: list) -> None:
     nb = new_notebook(cells=cells, metadata=META)
@@ -41,19 +60,8 @@ Análisis exploratorio del dataset `nudratabbas/healthcare-fraud-detection-datas
 Objetivo: estructura de datos, desbalance de clases y patrones útiles para features."""
         ),
         new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-# Por si el paquete no está instalado en modo editable: añade `src/` al path
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir():
-    sp = str(_src)
-    if sp not in sys.path:
-        sys.path.insert(0, sp)
-
+            BOOTSTRAP
+            + """
 import warnings
 
 import matplotlib.pyplot as plt
@@ -194,16 +202,8 @@ Carga datos, construye features a nivel **Provider**, entrena XGBoost con hiperp
 **Un solo run padre** en MLflow envuelve el entrenamiento final (runs anidados internos según `train.py`)."""
         ),
         new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
-
+            BOOTSTRAP
+            + """
 import warnings
 
 import mlflow
@@ -308,16 +308,8 @@ Optimización de hiperparámetros con **Optuna**, runs anidados en MLflow, model
 **Importante:** `optimize_hyperparameters` y `train_model` deben ejecutarse dentro del **mismo** run padre de MLflow (igual que `training_flow.py`), para que métricas y jerarquía de runs sean coherentes."""
         ),
         new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
-
+            BOOTSTRAP
+            + """
 import warnings
 
 import mlflow
@@ -410,17 +402,7 @@ Ejecuta el pipeline E2E definido en `src/healthcare_fraud/pipelines/training_flo
 
 Para monitorizar: en otra terminal `uv run prefect server start` (opcional según tu despliegue)."""
         ),
-        new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))"""
-        ),
+        new_code_cell(BOOTSTRAP),
         new_code_cell(
             """from healthcare_fraud.pipelines.training_flow import training_flow
 
@@ -485,17 +467,8 @@ uv sync --group dev
 Configura **`KAGGLE_API_TOKEN`** antes de descargar datos (README — Fase 01)."""
         ),
         new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-# Si Jupyter no ve el paquete instalado en modo editable:
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
-
+            BOOTSTRAP
+            + """
 import healthcare_fraud
 
 print("Paquete cargado desde:", getattr(healthcare_fraud, "__file__", "?"))
@@ -529,16 +502,8 @@ def mlflow_prefect_entorno() -> None:
 Los **servidores** (MLflow UI y Prefect) deben lanzarse en **terminales aparte**; aquí solo verificamos rutas y versiones desde Python."""
         ),
         new_code_cell(
-            """from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
-
+            BOOTSTRAP
+            + """
 from healthcare_fraud.config import PROJECT_ROOT
 
 _db = PROJECT_ROOT / "mlflow.db"
@@ -620,14 +585,8 @@ El JSON debe incluir las **16 features** (`FEATURE_COLS`). Ver OpenAPI en `/docs
 Opcional tras inferencias: usar `healthcare_fraud.monitoring.log_prediction` para append en `logs/predictions.jsonl`."""
         ),
         new_code_cell(
-            """from pathlib import Path
-import sys
-
-_root = Path.cwd().resolve()
-_src = _root / "src"
-if _src.is_dir() and str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
-
+            BOOTSTRAP
+            + """
 from healthcare_fraud.features.preprocess import FEATURE_COLS
 
 print(f"{len(FEATURE_COLS)} columnas esperadas en el POST:")

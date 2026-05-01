@@ -436,8 +436,11 @@ configurado (Paso 4) y que la terminal fue abierta después de configurar la var
 
 ### Paso 6 — Descargar y cargar el dataset
 
-La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs
-automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+La función `load_dataset()` autentica, descarga el dataset configurado en `KAGGLE_DATASET`
+y descubre los CSVs automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+
+Además del layout CMS (varios `train_*`), puedes usar solo `healthcare_fraud_detection.csv`
+(colocado en `data/raw/`): se expone como tabla `claims_flat` y `build_features()` la agrega a nivel proveedor.
 
 **macOS / Linux:**
 ```bash
@@ -453,6 +456,7 @@ Tablas esperadas y dimensiones de referencia:
 
 | Tabla | Filas | Columnas | Descripción |
 |-------|-------|----------|-------------|
+| `claims_flat` | (por CSV) | ~20 | Opción CSV único `healthcare_fraud_detection.csv` (`Is_Fraud` por reclamación) |
 | `labels_train` | 5,410 | 2 | Proveedores con etiqueta `PotentialFraud` |
 | `labels_test` | 1,353 | 1 | Proveedores sin etiqueta (para inferencia) |
 | `beneficiary` | 138,556 | 25 | Datos demográficos de beneficiarios (split train) |
@@ -478,7 +482,8 @@ ls data/raw/*.csv
 Get-ChildItem data\raw\*.csv | Select-Object Name
 ```
 
-Debe listar al menos 8 archivos CSV. Si no existen, volver al Paso 5.
+En el layout CMS suelen aparecer al menos 8 CSV; si solo usas el consolidado, basta con
+`healthcare_fraud_detection.csv`. Si no hay ningún CSV, volver al Paso 5.
 
 Ejecutar validación y limpieza:
 

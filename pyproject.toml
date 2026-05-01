@@ -51,6 +51,7 @@ pythonpath = ["src"]
 target-version = "py311"
 line-length = 100
 src = ["src", "tests"]
+exclude = ["**/*.ipynb", "notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

@@ -42,6 +42,8 @@ _MONEY_COLUMNS = [
     "IPAnnualDeductibleAmt",
     "OPAnnualReimbursementAmt",
     "OPAnnualDeductibleAmt",
+    "Claim_Amount",
+    "Approved_Amount",
 ]
 
 
