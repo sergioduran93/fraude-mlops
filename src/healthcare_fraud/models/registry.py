@@ -9,6 +9,7 @@ import mlflow
 import mlflow.pyfunc
 import mlflow.sklearn
 from mlflow.entities.model_registry import ModelVersion
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
 from healthcare_fraud.config import SETTINGS
@@ -29,7 +30,23 @@ def setup_mlflow(
     uri = SETTINGS.mlflow_tracking_uri if tracking_uri is None else tracking_uri
     mlflow.set_tracking_uri(uri)
     name = SETTINGS.mlflow_experiment if experiment_name is None else experiment_name
-    experiment = mlflow.set_experiment(name)
+
+    client = MlflowClient()
+    existing_experiment = client.get_experiment_by_name(name)
+    if existing_experiment is not None and existing_experiment.lifecycle_stage == "deleted":
+        client.restore_experiment(existing_experiment.experiment_id)
+
+    try:
+        experiment = mlflow.set_experiment(name)
+    except MlflowException:
+        # If the experiment cannot be activated for any reason, restore or recreate it.
+        if existing_experiment is not None and existing_experiment.lifecycle_stage == "deleted":
+            client.restore_experiment(existing_experiment.experiment_id)
+            experiment = mlflow.set_experiment(name)
+        else:
+            experiment_id = client.create_experiment(name)
+            experiment = mlflow.get_experiment(experiment_id)
+
     return experiment.experiment_id
 
 

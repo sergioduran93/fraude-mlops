@@ -246,9 +246,10 @@ Copy-Item .env.example .env
 Abrir `.env` con cualquier editor de texto y completar los valores según el entorno
 local. Es obligatorio definir `KAGGLE_API_TOKEN` (Settings → API en Kaggle). El slug del
 dataset por defecto es `KAGGLE_DATASET=nudratabbas/healthcare-fraud-detection-dataset`
-([página en Kaggle](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset));
-para usar otro dataset compatible, cambiar solo esa variable. No modificar `.env.example`
-con secretos; mantenerlo como plantilla.
+([página en Kaggle](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset)).
+Este es el dataset correcto usado en el proyecto; si se quiere usar otro dataset
+compatible, cambiar solo esa variable. No modificar `.env.example` con secretos; mantenerlo
+como plantilla.
 
 ---
 
@@ -281,6 +282,9 @@ uv run pytest -q
 ## Fase 01 — EDA y carga de datos
 
 **Dataset Kaggle (por defecto):** [Healthcare Fraud Detection Dataset](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset) (`nudratabbas/healthcare-fraud-detection-dataset`), configurable con `KAGGLE_DATASET` en `.env`.
+
+> Nota: este es el dataset correcto para el proyecto. La función `load_dataset()` descarga
+> automáticamente este dataset cuando no hay CSVs en `data/raw/`.
 
 ### Módulos implementados
 
