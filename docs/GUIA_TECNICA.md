@@ -23,7 +23,7 @@ Documento de apoyo al repositorio: qué contiene el proyecto, **cómo abordarlo 
 5. **Modelo avanzado** — `notebooks/03_experiments.ipynb` (XGBoost + Optuna + Model Registry).
 6. **Servicios** — MLflow UI y, si aplica, Prefect (`notebooks/05_mlflow_prefect_entorno.ipynb`).
 7. **Orquestación** — `notebooks/04_prefect_flow.ipynb` o `healthcare_fraud.pipelines.training_flow`.
-8. **API** — Exportar `models/best_model.joblib`, levantar FastAPI (`notebooks/06_api_inferencia.ipynb`).
+8. **API** — Ver README (sección **API REST**); notebook `06_api_inferencia.ipynb` para práctica guiada.
 9. **Calidad** — `uv run pytest` (unit + integration).
 
 Abre siempre **`notebooks/00_indice_curso.ipynb`** como **índice central** con enlaces y checklist.
@@ -72,8 +72,12 @@ Si falta `seaborn` o `healthcare_fraud`, el kernel **no** es el del proyecto.
 | `models/predict.py` | (Reservado / inferencia batch si se amplía.) |
 | `pipelines/training_flow.py` | Prefect: extract → validate → transform → train → register. |
 | `api/schemas.py` | Pydantic: request/response de inferencia. |
+| `api/constants.py` | Versión de la app (`importlib.metadata`). |
+| `api/openapi_metadata.py` | Texto Markdown global de OpenAPI + descripción de **tags** (`system`, `inference`). |
+| `api/middleware.py` | `X-Request-ID`, cabeceras de seguridad mínimas. |
+| `api/handlers.py` | Errores 422/500 JSON coherentes con `request_id`. |
 | `api/dependencies.py` | `get_classifier` (modelo en `app.state`). |
-| `api/routes.py` | Router: `/`, `/health`, `/metadata`, `/predict`, `/predict/batch`. |
+| `api/routes.py` | Router: sistema, live/ready, metadata, predict/batch. |
 | `api/main.py` | App FastAPI, lifespan y carga de `best_model.joblib`. |
 | `monitoring/logger.py` | Append JSONL a `logs/predictions.jsonl`. |
 
@@ -154,31 +158,15 @@ uv run python -c "from healthcare_fraud.pipelines import training_flow; training
 
 ## 8. API FastAPI
 
-### Prerrequisito
+La **documentación de endpoints, tablas de rutas y ejemplos** está centralizada en el **[README principal](../README.md)** (sección **«API REST»**). Evita duplicar cambios entre archivos.
 
-Archivo **`models/best_model.joblib`** (pipeline sklearn con `predict` y `predict_proba`), o variable **`MODEL_ARTIFACT_PATH`**.
-
-### Arranque
+Arranque rápido (desde la raíz del repositorio):
 
 ```bash
 uv run uvicorn healthcare_fraud.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-### Endpoints
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/` | Índice del servicio y enlaces a rutas documentadas. |
-| `GET` | `/health` | Estado y si el modelo está cargado. |
-| `GET` | `/metadata` | Lista ordenada de features (`feature_names`, `feature_count`). |
-| `POST` | `/predict` | Body JSON con las features (`FEATURE_COLS`). Respuesta: `prediction`, `probability_fraud`. |
-| `POST` | `/predict/batch` | Body `{"items": [ {...}, ... ]}` (mismo esquema; máx. 500 ítems). |
-
-### Ejemplo `GET /health`
-
-```bash
-curl -s http://127.0.0.1:8000/health
-```
+Documentación interactiva OpenAPI en el servicio levantado: **`/docs`** y **`/openapi.json`**.
 
 ---
 
@@ -217,7 +205,7 @@ uv run pytest tests/unit/test_load.py -v
 | **`03_experiments.ipynb`** | Optuna + modelo final + Model Registry. |
 | **`04_prefect_flow.ipynb`** | Invocación del `training_flow` Prefect. |
 | **`05_mlflow_prefect_entorno.ipynb`** | Comprobaciones locales y comandos MLflow/Prefect. |
-| **`06_api_inferencia.ipynb`** | Cómo levantar la API y probar `/health` (y referencia a `/predict`). |
+| **`06_api_inferencia.ipynb`** | Práctica: levantar el servicio; detalle de rutas en el **README (API REST)**. |
 
 **Regeneración** (tras editar el generador):
 

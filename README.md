@@ -681,7 +681,48 @@ nuevamente y refrescar el navegador con `Ctrl+Shift+R`.
 
 ---
 
-## API con Docker (Fase 04+)
+## API REST
+
+**Aquí está la documentación de uso de la API** (rutas, arranque y ejemplos). La especificación **OpenAPI** interactiva la sirve FastAPI en **`http://<host>:<puerto>/docs`** y el JSON en **`/openapi.json`** una vez levantado el servicio.
+
+### Prerrequisito
+
+- Artefacto entrenado: **`models/best_model.joblib`** (pipeline sklearn con `predict` y `predict_proba`), o variable **`MODEL_ARTIFACT_PATH`** apuntando a un `.joblib` válido.
+
+### Arranque local (sin Docker)
+
+```bash
+uv run uvicorn healthcare_fraud.api.main:app --host 0.0.0.0 --port 8000
+```
+
+### Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/` | Índice del servicio y enlaces a rutas documentadas |
+| `GET` | `/health` | Resumen: proceso vivo + modelo cargado |
+| `GET` | `/health/live` | Liveness (solo que el proceso responde; útil para reinicios) |
+| `GET` | `/health/ready` | Readiness: **503** si el modelo no cargó (Kubernetes `readinessProbe`) |
+| `GET` | `/metadata` | Contrato de entrada: `feature_names`, `feature_count`, etc. |
+| `POST` | `/predict` | Cuerpo JSON: una fila con todas las features (mismo orden que `/metadata`) |
+| `POST` | `/predict/batch` | Cuerpo `{"items": [ {...}, ... ]}` — hasta **500** filas por request |
+
+Respuesta típica de predicción: `prediction` (0 o 1) y `probability_fraud` (0..1).
+
+**Buenas prácticas incorporadas:** cabecera **`X-Request-ID`** (se propaga o se genera UUID; útil en logs y errores); errores **422** con cuerpo JSON estructurado (`error.type`, `error.details`, `request_id`); fallos de inferencia devuelven mensaje genérico al cliente y el detalle queda en logs del servidor; variable **`API_EXPOSE_ERROR_DETAILS`** (solo depuración) controla si los **500** incluyen el mensaje de excepción.
+
+**Documentación OpenAPI (Swagger / ReDoc):** con el servicio en marcha, abre **`/docs`** o **`/redoc`**. Ahí se describe el **propósito del API**, **decisiones de diseño** (proveedor agregado, contrato vía `/metadata`, fail-fast, trazabilidad), **etiquetas** por dominio (system / inference) y, en cada operación, *summary*, *description*, respuestas **400 / 422 / 503 / 500** y **ejemplos** de cuerpo para predicción (el texto largo vive en `src/healthcare_fraud/api/openapi_metadata.py` y en los decoradores de rutas).
+
+### Ejemplos con curl
+
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s http://127.0.0.1:8000/metadata
+```
+
+*(Para construir el JSON de `/predict`, usa los nombres en orden exacto que devuelve `/metadata`.)*
+
+### Docker (opcional, Fase 04+)
 
 ```bash
 # Construir y levantar
@@ -694,13 +735,7 @@ docker compose up
 docker compose down
 ```
 
-Endpoints disponibles:
-
-- `GET  /` — índice del servicio y enlaces a rutas / OpenAPI
-- `GET  /health` — estado del servicio y modelo cargado
-- `GET  /metadata` — nombres y orden de features (contrato de entrada)
-- `POST /predict` — predicción individual
-- `POST /predict/batch` — predicción en lote (máx. 500 filas por request)
+*(Los mismos endpoints que en la tabla anterior quedan expuestos según el `compose` del proyecto.)*
 
 ---
 
@@ -710,6 +745,7 @@ Endpoints disponibles:
 uv run ruff check .                       # linter
 uv run ruff format .                      # aplicar formato
 uv run pytest -q                          # todos los tests
+uv run pytest -q --cov=healthcare_fraud --cov-report=term-missing  # cobertura (como en CI)
 uv run pytest tests/unit/test_data.py -v  # test específico
 ```
 
@@ -731,7 +767,7 @@ tests/
 │   ├── test_models.py      # evaluate_model, _build_classifier, setup_mlflow (6 tests)
 │   └── test_train.py       # baseline logístico y métricas (2 tests)
 └── integration/
-    └── test_api.py         # GET /health (1 test, modelo dummy)
+    └── test_api.py         # integración API (health, /, metadata, predict, batch; modelo dummy)
 ```
 
 ### Ejecución
@@ -765,7 +801,7 @@ uv run pytest --cov=healthcare_fraud tests/unit/ -q
 Cada push y PR a `main` ejecuta automáticamente en GitHub Actions:
 
 ```
-uv sync --group dev → ruff check → ruff format --check → pytest -q
+uv sync --group dev → ruff check → ruff format --check → pytest con cobertura (healthcare_fraud)
 ```
 
 ---

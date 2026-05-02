@@ -51,6 +51,12 @@ class Settings:
     kaggle_dataset: str = os.getenv(
         "KAGGLE_DATASET", "nudratabbas/healthcare-fraud-detection-dataset"
     )
+    # API: en producción dejar en false para no exponer trazas/mensajes internos en JSON de error.
+    api_expose_error_details: bool = os.getenv("API_EXPOSE_ERROR_DETAILS", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 SETTINGS = Settings()

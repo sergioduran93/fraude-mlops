@@ -11,6 +11,10 @@ from pathlib import Path
 import joblib
 from fastapi import FastAPI
 
+from healthcare_fraud.api.constants import get_app_version
+from healthcare_fraud.api.handlers import register_exception_handlers
+from healthcare_fraud.api.middleware import RequestContextMiddleware
+from healthcare_fraud.api.openapi_metadata import API_DESCRIPTION, OPENAPI_TAGS
 from healthcare_fraud.api.routes import router as api_router
 from healthcare_fraud.config import PROJECT_ROOT, SETTINGS
 
@@ -52,14 +56,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.model = None
 
 
+_version = get_app_version()
+
 app = FastAPI(
-    title="Healthcare fraud inference",
-    description=(
-        "Inferencia binaria sobre features agregadas a nivel proveedor. "
-        "Use GET /metadata para el orden de columnas y POST /predict o /predict/batch."
+    title="Healthcare Fraud Inference API",
+    summary=(
+        "Inferencia en línea para detección de fraude en reclamaciones de salud "
+        "(features agregadas por proveedor)."
     ),
-    version="0.1.0",
+    description=API_DESCRIPTION,
+    version=_version,
+    openapi_tags=OPENAPI_TAGS,
+    contact={
+        "name": "Proyecto fraude-mlops — Curso MLOps (Universidad de Medellín)",
+        "url": "https://github.com/sergioduran93/fraude-mlops",
+    },
+    license_info={"name": "MIT", "identifier": "MIT"},
     lifespan=lifespan,
+    servers=[
+        {"url": "http://127.0.0.1:8000", "description": "Desarrollo local (uvicorn típico)"},
+    ],
 )
 
+app.add_middleware(RequestContextMiddleware)
+register_exception_handlers(app)
 app.include_router(api_router)
