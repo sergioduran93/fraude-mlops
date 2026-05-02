@@ -14,6 +14,8 @@ from sklearn.preprocessing import StandardScaler
 
 from healthcare_fraud.features.preprocess import FEATURE_COLS
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def dummy_model_path(tmp_path: Path) -> Path:
@@ -47,6 +49,10 @@ def client(dummy_model_path: Path, monkeypatch: pytest.MonkeyPatch):
         yield tc
 
 
+def _zero_feature_payload() -> dict[str, float]:
+    return {name: 0.0 for name in FEATURE_COLS}
+
+
 def test_health_returns_200(client: TestClient) -> None:
     response = client.get("/health")
 
@@ -54,3 +60,72 @@ def test_health_returns_200(client: TestClient) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["model_loaded"] is True
+
+
+def test_root_lists_endpoints(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "healthcare-fraud-inference"
+    assert "endpoints" in body
+    assert body["endpoints"]["predict"]["path"] == "/predict"
+
+
+def test_metadata_matches_training_features(client: TestClient) -> None:
+    response = client.get("/metadata")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["feature_names"] == list(FEATURE_COLS)
+    assert body["feature_count"] == len(FEATURE_COLS)
+
+
+def test_predict_single_ok(client: TestClient) -> None:
+    response = client.post("/predict", json=_zero_feature_payload())
+    assert response.status_code == 200
+    data = response.json()
+    assert "prediction" in data and "probability_fraud" in data
+
+
+def test_predict_batch_ok(client: TestClient) -> None:
+    payload = {"items": [_zero_feature_payload(), _zero_feature_payload()]}
+    response = client.post("/predict/batch", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 2
+    assert len(data["results"]) == 2
+
+
+def test_liveness_always_ok(client: TestClient) -> None:
+    response = client.get("/health/live")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_readiness_ok_when_model_loaded(client: TestClient) -> None:
+    response = client.get("/health/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["model_loaded"] is True
+
+
+def test_request_id_header_roundtrip(client: TestClient) -> None:
+    response = client.get("/health", headers={"X-Request-ID": "test-req-1"})
+    assert response.status_code == 200
+    assert response.headers.get("X-Request-ID") == "test-req-1"
+
+
+def test_request_id_generated_if_absent(client: TestClient) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+    assert len(response.headers["X-Request-ID"]) >= 8
+
+
+def test_validation_error_includes_type_and_request_id(client: TestClient) -> None:
+    response = client.post("/predict", json={})
+    assert response.status_code == 422
+    data = response.json()
+    assert data["error"]["type"] == "validation_error"
+    assert "request_id" in data
+    assert "details" in data["error"]

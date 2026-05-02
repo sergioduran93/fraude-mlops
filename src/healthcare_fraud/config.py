@@ -26,7 +26,11 @@ def _resolve_project_relative(env_var: str, default: str) -> Path:
 
 @dataclass(frozen=True)
 class Settings:
-    """Runtime settings for data pipeline, MLflow and orchestration."""
+    """Valores de ejecución: rutas de datos/modelos, MLflow y entrenamiento.
+
+    Centralizar aquí evita rutas relativos al CWD de Jupyter y facilita
+    reproducibilidad al fijar URI de tracking y ratios de split por variables de entorno.
+    """
 
     data_dir: Path = field(default_factory=lambda: _resolve_project_relative("DATA_DIR", "data"))
     models_dir: Path = field(
@@ -46,6 +50,12 @@ class Settings:
     # https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset
     kaggle_dataset: str = os.getenv(
         "KAGGLE_DATASET", "nudratabbas/healthcare-fraud-detection-dataset"
+    )
+    # API: en producción dejar en false para no exponer trazas/mensajes internos en JSON de error.
+    api_expose_error_details: bool = os.getenv("API_EXPOSE_ERROR_DETAILS", "").lower() in (
+        "1",
+        "true",
+        "yes",
     )
 
 

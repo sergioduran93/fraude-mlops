@@ -46,6 +46,18 @@ monitoring = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "integration: pruebas HTTP / API (requieren TestClient y artefacto dummy)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["healthcare_fraud"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
 
 [tool.ruff]
 target-version = "py311"
@@ -54,7 +66,7 @@ src = ["src", "tests"]
 exclude = ["**/*.ipynb", "notebooks"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/build_notebooks.py" = ["E501"]

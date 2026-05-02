@@ -18,7 +18,10 @@ def evaluate_model(
     X: np.ndarray,
     y_true: np.ndarray,
 ) -> dict[str, float]:
-    """Return recall, precision, f1, roc_auc and avg_precision for binary classification."""
+    """Métricas alineadas al negocio: recall y F1 priorizan capturar fraude (clase minoritaria).
+
+    ROC-AUC y average_precision resumen el ranking de probabilidades para auditoría.
+    """
     y_pred = model.predict(X)
     y_prob = model.predict_proba(X)[:, 1]
     return {

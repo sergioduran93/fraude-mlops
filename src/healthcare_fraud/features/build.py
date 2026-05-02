@@ -1,4 +1,8 @@
-"""Feature engineering: aggregate raw tables to provider-level features."""
+"""Ingeniería de features: de tablas CMS o CSV plano a una fila por proveedor.
+
+El modelo opera a nivel agregado (comportamiento de facturación), no a nivel reclamación
+individual, alineado con la etiqueta ``PotentialFraud`` del dataset.
+"""
 
 from __future__ import annotations
 
@@ -104,6 +108,7 @@ def _enrich_with_beneficiary(claims: pd.DataFrame, beneficiary: pd.DataFrame) ->
 
 
 def _aggregate_by_provider(claims_enriched: pd.DataFrame) -> pd.DataFrame:
+    # Agregación principal: señales de volumen, monto, complejidad y perfiles de beneficiarios.
     df = claims_enriched.copy()
     df["is_inpatient"] = (df["claim_type"] == "inpatient").astype("int8")
     df["is_outpatient"] = (df["claim_type"] == "outpatient").astype("int8")

@@ -1,4 +1,8 @@
-"""Orquestación Prefect 3 del entrenamiento de detección de fraude."""
+"""Orquestación Prefect 3: ETL + entrenamiento + registro (pipeline reproducible).
+
+Cada ``@task`` puede reintentarse por fallos de red al descargar datos; el task de
+entrenamiento persiste el resultado para inspección en la UI de Prefect.
+"""
 
 from __future__ import annotations
 

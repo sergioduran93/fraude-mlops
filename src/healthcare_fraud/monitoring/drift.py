@@ -1,4 +1,7 @@
-"""Detección estadística de drift en features de entrada."""
+"""Detección estadística de drift en features de entrada.
+
+Para extensiones futuras (PSI, métricas sobre logs/) ver docs/GUIA_TECNICA.md.
+"""
 
 from __future__ import annotations
 

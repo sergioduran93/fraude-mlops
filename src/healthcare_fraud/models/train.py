@@ -32,6 +32,7 @@ def setup_mlflow() -> None:
 
 
 def _build_classifier(params: dict[str, Any], n_neg: int, n_pos: int) -> Any:
+    # scale_pos_weight ≈ ratio neg/pos: mitiga el desbalance ~9–10% fraude sin undersampling.
     try:
         from xgboost import XGBClassifier
     except ModuleNotFoundError as exc:
@@ -72,6 +73,7 @@ def optimize_hyperparameters(
     n_pos = int((y_train == 1).sum())
 
     def objective(trial: optuna.Trial) -> float:
+        # Cada trial es un nested run en MLflow: trazabilidad de hiperparámetros y roc_auc.
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 100, 500),
             "max_depth": trial.suggest_int("max_depth", 3, 8),

@@ -112,7 +112,10 @@ def transition_model_stage(
     version: str,
     stage: str,
 ) -> ModelVersion:
-    """Mueve una versión del modelo al stage indicado."""
+    """Promoción en MLflow Registry (p. ej. Staging → Production).
+
+    En Production se archivan versiones previas para mantener una única versión activa.
+    """
     if stage not in _VALID_STAGES:
         raise ValueError(f"Invalid stage '{stage}'. Must be one of {_VALID_STAGES}")
     client = MlflowClient()

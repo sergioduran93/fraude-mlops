@@ -1,4 +1,4 @@
-"""API REST FastAPI para inferencia del modelo de fraude."""
+"""Aplicación FastAPI: carga del modelo al arranque y montaje de rutas."""
 
 from __future__ import annotations
 
@@ -9,12 +9,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import joblib
-import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
-from healthcare_fraud.api.schemas import HealthResponse, PredictRequest, PredictResponse
+from healthcare_fraud.api.constants import get_app_version
+from healthcare_fraud.api.handlers import register_exception_handlers
+from healthcare_fraud.api.middleware import RequestContextMiddleware
+from healthcare_fraud.api.openapi_metadata import API_DESCRIPTION, OPENAPI_TAGS
+from healthcare_fraud.api.routes import router as api_router
 from healthcare_fraud.config import PROJECT_ROOT, SETTINGS
-from healthcare_fraud.features.preprocess import FEATURE_COLS
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +31,8 @@ def resolve_model_path() -> Path:
     return (PROJECT_ROOT / SETTINGS.models_dir / _ARTIFACT_NAME).resolve()
 
 
-_clf: object | None = None
-
-
-def _load_classifier(path: Path) -> object:
+def load_classifier(path: Path) -> object:
+    """Carga el pipeline sklearn; se usa en el lifespan para ``app.state.model``."""
     if not path.is_file():
         msg = (
             f"No se encontró el modelo en {path}. "
@@ -47,64 +47,37 @@ def _load_classifier(path: Path) -> object:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    global _clf
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     path = resolve_model_path()
-    _clf = _load_classifier(path)
+    app.state.model = load_classifier(path)
     try:
         yield
     finally:
-        _clf = None
+        app.state.model = None
 
+
+_version = get_app_version()
 
 app = FastAPI(
-    title="Healthcare fraud inference",
-    description="Inferencia binaria sobre features agregadas a nivel proveedor.",
-    version="0.1.0",
+    title="Healthcare Fraud Inference API",
+    summary=(
+        "Inferencia en línea para detección de fraude en reclamaciones de salud "
+        "(features agregadas por proveedor)."
+    ),
+    description=API_DESCRIPTION,
+    version=_version,
+    openapi_tags=OPENAPI_TAGS,
+    contact={
+        "name": "Proyecto fraude-mlops — Curso MLOps (Universidad de Medellín)",
+        "url": "https://github.com/sergioduran93/fraude-mlops",
+    },
+    license_info={"name": "MIT", "identifier": "MIT"},
     lifespan=lifespan,
+    servers=[
+        {"url": "http://127.0.0.1:8000", "description": "Desarrollo local (uvicorn típico)"},
+    ],
 )
 
-
-def _feature_matrix(payload: PredictRequest) -> np.ndarray:
-    """Construye una fila (1, n_features) en el mismo orden que en entrenamiento."""
-    row = payload.model_dump()
-    ordered = [row[name] for name in FEATURE_COLS]
-    return np.asarray([ordered], dtype=np.float64)
-
-
-@app.get("/health", response_model=HealthResponse, tags=["system"])
-def health() -> HealthResponse:
-    """Comprueba que la aplicación está viva y el modelo cargado."""
-    return HealthResponse(status="ok", model_loaded=_clf is not None)
-
-
-@app.post("/predict", response_model=PredictResponse, tags=["inference"])
-def predict(payload: PredictRequest) -> PredictResponse:
-    """Devuelve clase predicha y probabilidad de fraude."""
-    if _clf is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible.")
-
-    X = _feature_matrix(payload)
-    try:
-        pred_arr = _clf.predict(X)
-        proba_arr = _clf.predict_proba(X)
-    except Exception as exc:
-        logger.exception("Fallo en inferencia")
-        raise HTTPException(status_code=400, detail=f"Error en predicción: {exc}") from exc
-
-    prediction = int(pred_arr.flat[0])
-    fraud_column = 1 if proba_arr.shape[1] > 1 else 0
-    probability_fraud = float(np.clip(proba_arr[0, fraud_column], 0.0, 1.0))
-
-    try:
-        from healthcare_fraud.monitoring.logger import log_prediction
-
-        log_prediction(
-            input_features=payload.model_dump(),
-            probability_fraud=probability_fraud,
-            prediction=prediction,
-        )
-    except Exception:
-        pass  # el logging nunca debe interrumpir la inferencia
-
-    return PredictResponse(prediction=prediction, probability_fraud=probability_fraud)
+app.add_middleware(RequestContextMiddleware)
+register_exception_handlers(app)
+app.include_router(api_router)
