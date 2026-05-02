@@ -109,7 +109,8 @@ def _resolve_raw_directory(raw_dir: Path | None) -> Path:
     fallback = (PROJECT_ROOT / "notebooks" / "data" / "raw").resolve()
     if fallback.is_dir() and any(fallback.glob("*.csv")):
         logger.warning(
-            "Hay CSV en %s pero no en %s — usando el primero. Copia los archivos a %s para evitar confusiones.",
+            "Hay CSV en %s pero no en %s — usando el primero. "
+            "Copia los archivos a %s para evitar confusiones.",
             fallback,
             primary,
             primary,

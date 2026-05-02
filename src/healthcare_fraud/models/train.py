@@ -26,7 +26,8 @@ def setup_mlflow() -> None:
         optuna.logging.set_verbosity(optuna.logging.WARNING)
     except ModuleNotFoundError:
         logger.debug(
-            "optuna no instalado — omitiendo nivel de log (solo hace falta para optimize_hyperparameters)"
+            "optuna no instalado — omitiendo nivel de log "
+            "(solo hace falta para optimize_hyperparameters)"
         )
 
 
