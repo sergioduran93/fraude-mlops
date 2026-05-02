@@ -20,3 +20,11 @@ repos:
     rev: v8.22.1
     hooks:
       - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: no-co-authored-by
+        name: Reject Co-Authored-By trailers
+        language: pygrep
+        entry: "(?i)co-authored-by"
+        stages: [commit-msg]
