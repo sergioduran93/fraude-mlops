@@ -43,3 +43,41 @@ PredictRequest = create_model(
         for name in FEATURE_COLS
     },
 )
+
+
+class ModelMetadataResponse(BaseModel):
+    """Contrato de entrada del modelo para integraciones y clientes generadores."""
+
+    feature_names: list[str] = Field(..., description="Orden exacto requerido en POST /predict.")
+    feature_count: int = Field(..., ge=1)
+    task: str = Field(default="binary_classification", description="Tipo de problema ML.")
+    aggregation_level: str = Field(
+        default="provider",
+        description="Las features corresponden a un proveedor agregado, no a una reclamación.",
+    )
+    target_description: str = Field(
+        ...,
+        description="Interpretación de la clase positiva (fraude) y salida de predicción.",
+    )
+
+
+class BatchPredictRequest(BaseModel):
+    """Varias filas de features en el mismo orden que ``/metadata``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[PredictRequest] = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description=(
+            "Lista de vectores de features; cada elemento cumple el mismo esquema que /predict."
+        ),
+    )
+
+
+class BatchPredictResponse(BaseModel):
+    """Predicciones alineadas por índice con ``items`` del request."""
+
+    results: list[PredictResponse]
+    count: int = Field(..., ge=0)

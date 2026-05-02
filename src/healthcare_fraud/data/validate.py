@@ -8,7 +8,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Minimum required columns per semantic table key.
+# Contrato mínimo por tabla: falla temprano si el dataset Kaggle cambia de esquema.
 _REQUIRED_COLUMNS: dict[str, list[str]] = {
     "beneficiary": ["BeneID", "DOB", "Gender", "Race", "State", "County"],
     "inpatient": ["BeneID", "ClaimID", "Provider", "InscClaimAmtReimbursed"],

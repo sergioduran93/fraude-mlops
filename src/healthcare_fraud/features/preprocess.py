@@ -36,7 +36,11 @@ def split_providers(
     train_ratio: float = SETTINGS.train_ratio,
     random_state: int = SETTINGS.random_state,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Stratified split at provider level to avoid data leakage."""
+    """Partición train/val estratificada por proveedor (una fila = un proveedor).
+
+    Estratificar por ``PotentialFraud`` mantiene la proporción de fraude en val;
+    al agrupar por proveedor se reduce fuga de información entre conjuntos.
+    """
     if "PotentialFraud" not in feature_df.columns:
         raise ValueError("feature_df must contain 'PotentialFraud' column")
     missing = [c for c in FEATURE_COLS if c not in feature_df.columns]
@@ -65,7 +69,11 @@ def prepare_train_val(
     train_df: pd.DataFrame,
     val_df: pd.DataFrame,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Pipeline]:
-    """Fit preprocessor on train, transform both splits. Never fits on val."""
+    """Ajusta imputación y escalado solo con train; val solo se transforma.
+
+    Los arrays escalados alimentan Optuna/XGBoost; las matrices *raw* se usan con el
+    pipeline completo en el entrenamiento final (mismo orden que ``FEATURE_COLS``).
+    """
     X_train = train_df[FEATURE_COLS].values
     X_val = val_df[FEATURE_COLS].values
     y_train = train_df["PotentialFraud"].values

@@ -47,6 +47,10 @@ def client(dummy_model_path: Path, monkeypatch: pytest.MonkeyPatch):
         yield tc
 
 
+def _zero_feature_payload() -> dict[str, float]:
+    return {name: 0.0 for name in FEATURE_COLS}
+
+
 def test_health_returns_200(client: TestClient) -> None:
     response = client.get("/health")
 
@@ -54,3 +58,36 @@ def test_health_returns_200(client: TestClient) -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["model_loaded"] is True
+
+
+def test_root_lists_endpoints(client: TestClient) -> None:
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "healthcare-fraud-inference"
+    assert "endpoints" in body
+    assert body["endpoints"]["predict"]["path"] == "/predict"
+
+
+def test_metadata_matches_training_features(client: TestClient) -> None:
+    response = client.get("/metadata")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["feature_names"] == list(FEATURE_COLS)
+    assert body["feature_count"] == len(FEATURE_COLS)
+
+
+def test_predict_single_ok(client: TestClient) -> None:
+    response = client.post("/predict", json=_zero_feature_payload())
+    assert response.status_code == 200
+    data = response.json()
+    assert "prediction" in data and "probability_fraud" in data
+
+
+def test_predict_batch_ok(client: TestClient) -> None:
+    payload = {"items": [_zero_feature_payload(), _zero_feature_payload()]}
+    response = client.post("/predict/batch", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 2
+    assert len(data["results"]) == 2

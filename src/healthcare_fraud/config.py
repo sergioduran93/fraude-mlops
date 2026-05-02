@@ -26,7 +26,11 @@ def _resolve_project_relative(env_var: str, default: str) -> Path:
 
 @dataclass(frozen=True)
 class Settings:
-    """Runtime settings for data pipeline, MLflow and orchestration."""
+    """Valores de ejecución: rutas de datos/modelos, MLflow y entrenamiento.
+
+    Centralizar aquí evita rutas relativos al CWD de Jupyter y facilita
+    reproducibilidad al fijar URI de tracking y ratios de split por variables de entorno.
+    """
 
     data_dir: Path = field(default_factory=lambda: _resolve_project_relative("DATA_DIR", "data"))
     models_dir: Path = field(

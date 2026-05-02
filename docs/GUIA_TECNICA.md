@@ -72,7 +72,9 @@ Si falta `seaborn` o `healthcare_fraud`, el kernel **no** es el del proyecto.
 | `models/predict.py` | (Reservado / inferencia batch si se amplía.) |
 | `pipelines/training_flow.py` | Prefect: extract → validate → transform → train → register. |
 | `api/schemas.py` | Pydantic: request/response de inferencia. |
-| `api/main.py` | FastAPI: `/health`, `/predict`. |
+| `api/dependencies.py` | `get_classifier` (modelo en `app.state`). |
+| `api/routes.py` | Router: `/`, `/health`, `/metadata`, `/predict`, `/predict/batch`. |
+| `api/main.py` | App FastAPI, lifespan y carga de `best_model.joblib`. |
 | `monitoring/logger.py` | Append JSONL a `logs/predictions.jsonl`. |
 
 Scripts en la raíz: `train_and_log.py` (baseline + MLflow).
@@ -166,8 +168,11 @@ uv run uvicorn healthcare_fraud.api.main:app --host 0.0.0.0 --port 8000
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
+| `GET` | `/` | Índice del servicio y enlaces a rutas documentadas. |
 | `GET` | `/health` | Estado y si el modelo está cargado. |
-| `POST` | `/predict` | Body JSON con las 16 features (`FEATURE_COLS`). Respuesta: `prediction`, `probability_fraud`. |
+| `GET` | `/metadata` | Lista ordenada de features (`feature_names`, `feature_count`). |
+| `POST` | `/predict` | Body JSON con las features (`FEATURE_COLS`). Respuesta: `prediction`, `probability_fraud`. |
+| `POST` | `/predict/batch` | Body `{"items": [ {...}, ... ]}` (mismo esquema; máx. 500 ítems). |
 
 ### Ejemplo `GET /health`
 

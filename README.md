@@ -696,9 +696,11 @@ docker compose down
 
 Endpoints disponibles:
 
+- `GET  /` — índice del servicio y enlaces a rutas / OpenAPI
 - `GET  /health` — estado del servicio y modelo cargado
+- `GET  /metadata` — nombres y orden de features (contrato de entrada)
 - `POST /predict` — predicción individual
-- `POST /predict/batch` — predicción en lote
+- `POST /predict/batch` — predicción en lote (máx. 500 filas por request)
 
 ---
 

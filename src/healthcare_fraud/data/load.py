@@ -12,10 +12,9 @@ from healthcare_fraud.config import PROJECT_ROOT, SETTINGS
 
 logger = logging.getLogger(__name__)
 
-# Maps regex patterns in CSV filenames to semantic keys.
-# Patterns are specific to train split to avoid loading test clinical tables in EDA.
-# Test clinical files (Test_Beneficiary, Test_Inpatient, Test_Outpatient) are skipped
-# because they lack fraud labels and are only needed for inference (Fase 04+).
+# Asignación nombre de archivo → clave lógica del pipeline.
+# Solo se cargan tablas del split train para entrenamiento/EDA coherente con etiquetas.
+# Los CSV de test clínico (Test_*) se omiten: no traen fraude y se reservan para inferencia.
 _TABLE_PATTERNS: list[tuple[str, str]] = [
     # Dataset consolidado (p. ej. nudratabbas/healthcare-fraud-detection-dataset)
     (r"healthcare[_\-]?fraud[_\-]?detection", "claims_flat"),
@@ -109,7 +108,8 @@ def _resolve_raw_directory(raw_dir: Path | None) -> Path:
     fallback = (PROJECT_ROOT / "notebooks" / "data" / "raw").resolve()
     if fallback.is_dir() and any(fallback.glob("*.csv")):
         logger.warning(
-            "Hay CSV en %s pero no en %s — usando el primero. Copia los archivos a %s para evitar confusiones.",
+            "Hay CSV en %s pero no en %s — usando el primero. "
+            "Copia los archivos a %s para evitar confusiones.",
             fallback,
             primary,
             primary,
