@@ -96,4 +96,15 @@ def predict(payload: PredictRequest) -> PredictResponse:
     fraud_column = 1 if proba_arr.shape[1] > 1 else 0
     probability_fraud = float(np.clip(proba_arr[0, fraud_column], 0.0, 1.0))
 
+    try:
+        from healthcare_fraud.monitoring.logger import log_prediction
+
+        log_prediction(
+            input_features=payload.model_dump(),
+            probability_fraud=probability_fraud,
+            prediction=prediction,
+        )
+    except Exception:
+        pass  # el logging nunca debe interrumpir la inferencia
+
     return PredictResponse(prediction=prediction, probability_fraud=probability_fraud)
