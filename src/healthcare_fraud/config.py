@@ -6,7 +6,7 @@ This file centralizes defaults so the pipeline is easier to maintain and explain
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -17,12 +17,21 @@ load_dotenv()
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _resolve_project_relative(env_var: str, default: str) -> Path:
+    """DATA_DIR/MODELS_DIR relativos → respecto al repo (no al cwd de Jupyter)."""
+    raw = os.getenv(env_var, default).strip()
+    path = Path(raw or default)
+    return path.resolve() if path.is_absolute() else (PROJECT_ROOT / path).resolve()
+
+
 @dataclass(frozen=True)
 class Settings:
     """Runtime settings for data pipeline, MLflow and orchestration."""
 
-    data_dir: Path = Path(os.getenv("DATA_DIR", "data"))
-    models_dir: Path = Path(os.getenv("MODELS_DIR", "models"))
+    data_dir: Path = field(default_factory=lambda: _resolve_project_relative("DATA_DIR", "data"))
+    models_dir: Path = field(
+        default_factory=lambda: _resolve_project_relative("MODELS_DIR", "models")
+    )
 
     # Default MLflow locations pinned to project root so artifacts and the
     # sqlite db are always created under the project directory.
@@ -33,7 +42,11 @@ class Settings:
     train_ratio: float = float(os.getenv("TRAIN_RATIO", "0.8"))
     optuna_trials: int = int(os.getenv("OPTUNA_TRIALS", "20"))
     random_state: int = int(os.getenv("RANDOM_STATE", "42"))
-    kaggle_dataset: str = "rohitrox/healthcare-provider-fraud-detection-analysis"
+    # Por defecto: nudratabbas/healthcare-fraud-detection-dataset
+    # https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset
+    kaggle_dataset: str = os.getenv(
+        "KAGGLE_DATASET", "nudratabbas/healthcare-fraud-detection-dataset"
+    )
 
 
 SETTINGS = Settings()

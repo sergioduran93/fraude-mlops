@@ -157,6 +157,40 @@ def test_build_features_raises_on_missing_table(tables_dict: dict[str, pd.DataFr
         build_features(incomplete)
 
 
+@pytest.fixture
+def claims_flat_tables() -> dict[str, pd.DataFrame]:
+    """Mini tabla tipo healthcare_fraud_detection.csv (una fila por reclamación)."""
+    df = pd.DataFrame(
+        {
+            "Provider_ID": ["P001", "P001", "P002", "P002"],
+            "Claim_ID": ["C1", "C2", "C3", "C4"],
+            "Patient_Age": [40, 41, 50, 51],
+            "Patient_Gender": ["Male", "Male", "Female", "Female"],
+            "Patient_State": ["NY", "NY", "TX", "TX"],
+            "Claim_Amount": np.array([400.0, 500.0, 600.0, 700.0], dtype="float32"),
+            "Approved_Amount": np.array([380.0, 490.0, 580.0, 690.0], dtype="float32"),
+            "Days_Between_Service_and_Claim": [5, 10, 3, 4],
+            "Length_of_Stay": [0, 2, 1, 3],
+            "Visit_Type": ["Outpatient", "Inpatient", "Emergency", "Inpatient"],
+            "Provider_Specialty": ["Cardiology", "Cardiology", "GP", "GP"],
+            "Chronic_Condition_Flag": [1, 0, 1, 1],
+            "Is_Fraud": [0, 0, 0, 1],
+        }
+    )
+    return {"claims_flat": df}
+
+
+def test_build_features_claims_flat_provider_level(
+    claims_flat_tables: dict[str, pd.DataFrame],
+) -> None:
+    out = build_features(claims_flat_tables)
+    assert len(out) == 2
+    assert set(out["Provider"]) == {"P001", "P002"}
+    assert out["PotentialFraud"].tolist() == [0, 1]
+    missing = [c for c in FEATURE_COLS if c not in out.columns]
+    assert missing == [], f"Missing feature columns: {missing}"
+
+
 # ---------------------------------------------------------------------------
 # split_providers
 # ---------------------------------------------------------------------------

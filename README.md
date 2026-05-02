@@ -47,6 +47,8 @@ Datos Kaggle (CSV)
  monitoring/        <- detección de drift y registro de predicciones
 ```
 
+Guía técnica paso a paso (notebooks, MLflow, Prefect, tests): **[docs/GUIA_TECNICA.md](docs/GUIA_TECNICA.md)**.
+
 ---
 
 ## Requisitos del sistema
@@ -242,7 +244,12 @@ Copy-Item .env.example .env
 ```
 
 Abrir `.env` con cualquier editor de texto y completar los valores según el entorno
-local. No modificar `.env.example`.
+local. Es obligatorio definir `KAGGLE_API_TOKEN` (Settings → API en Kaggle). El slug del
+dataset por defecto es `KAGGLE_DATASET=nudratabbas/healthcare-fraud-detection-dataset`
+([página en Kaggle](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset)).
+Este es el dataset correcto usado en el proyecto; si se quiere usar otro dataset
+compatible, cambiar solo esa variable. No modificar `.env.example` con secretos; mantenerlo
+como plantilla.
 
 ---
 
@@ -274,11 +281,16 @@ uv run pytest -q
 
 ## Fase 01 — EDA y carga de datos
 
+**Dataset Kaggle (por defecto):** [Healthcare Fraud Detection Dataset](https://www.kaggle.com/datasets/nudratabbas/healthcare-fraud-detection-dataset) (`nudratabbas/healthcare-fraud-detection-dataset`), configurable con `KAGGLE_DATASET` en `.env`.
+
+> Nota: este es el dataset correcto para el proyecto. La función `load_dataset()` descarga
+> automáticamente este dataset cuando no hay CSVs en `data/raw/`.
+
 ### Módulos implementados
 
 | Módulo | Responsabilidad |
 |--------|----------------|
-| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv |
+| `src/healthcare_fraud/config.py` | Clase `Settings` con `@dataclass(frozen=True)` y dotenv (`KAGGLE_DATASET`, etc.) |
 | `src/healthcare_fraud/data/load.py` | Autenticación Kaggle, descarga, discovery dinámico de CSVs |
 | `src/healthcare_fraud/data/validate.py` | Validación de esquema, nulos y reglas de negocio por tabla |
 | `src/healthcare_fraud/data/clean.py` | Limpieza, encoding categórico, parseo de fechas, cast de tipos |
@@ -412,12 +424,14 @@ Reemplazar `KGAT_TU_TOKEN` con el token copiado en el Paso 3.
 uv run kaggle datasets list --search "healthcare fraud"
 ```
 
-Esperado: lista de datasets como esta:
+Esperado: varios datasets, entre ellos el usado en el repo:
 
 ```
 ref                                                    title                                    ...
-rohitrox/healthcare-provider-fraud-detection-analysis  Healthcare Provider Fraud Detection ...
+nudratabbas/healthcare-fraud-detection-dataset         Healthcare Fraud Detection Dataset ...
 ```
+
+(Si el listado cambia, basta con que la búsqueda responda sin error de autenticación.)
 
 Si aparece `401` o `You must authenticate`, verificar que `KAGGLE_API_TOKEN` está
 configurado (Paso 4) y que la terminal fue abierta después de configurar la variable.
@@ -426,8 +440,11 @@ configurado (Paso 4) y que la terminal fue abierta después de configurar la var
 
 ### Paso 6 — Descargar y cargar el dataset
 
-La función `load_dataset()` autentica, descarga (~500 MB) y descubre los CSVs
-automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+La función `load_dataset()` autentica, descarga el dataset configurado en `KAGGLE_DATASET`
+y descubre los CSVs automáticamente. Si los archivos ya existen en `data/raw/`, los reutiliza sin descargar.
+
+Además del layout CMS (varios `train_*`), puedes usar solo `healthcare_fraud_detection.csv`
+(colocado en `data/raw/`): se expone como tabla `claims_flat` y `build_features()` la agrega a nivel proveedor.
 
 **macOS / Linux:**
 ```bash
@@ -443,6 +460,7 @@ Tablas esperadas y dimensiones de referencia:
 
 | Tabla | Filas | Columnas | Descripción |
 |-------|-------|----------|-------------|
+| `claims_flat` | (por CSV) | ~20 | Opción CSV único `healthcare_fraud_detection.csv` (`Is_Fraud` por reclamación) |
 | `labels_train` | 5,410 | 2 | Proveedores con etiqueta `PotentialFraud` |
 | `labels_test` | 1,353 | 1 | Proveedores sin etiqueta (para inferencia) |
 | `beneficiary` | 138,556 | 25 | Datos demográficos de beneficiarios (split train) |
@@ -468,7 +486,8 @@ ls data/raw/*.csv
 Get-ChildItem data\raw\*.csv | Select-Object Name
 ```
 
-Debe listar al menos 8 archivos CSV. Si no existen, volver al Paso 5.
+En el layout CMS suelen aparecer al menos 8 CSV; si solo usas el consolidado, basta con
+`healthcare_fraud_detection.csv`. Si no hay ningún CSV, volver al Paso 5.
 
 Ejecutar validación y limpieza:
 
@@ -705,16 +724,18 @@ datos reales ni conexión a Kaggle.
 tests/
 ├── unit/
 │   ├── test_data.py        # validate_dataframe y clean_dataframe (11 tests)
+│   ├── test_load.py        # discover_csv_files / sin CSV (2 tests)
 │   ├── test_features.py    # build_features, split_providers, prepare_train_val (10 tests)
-│   └── test_models.py      # evaluate_model, _build_classifier, setup_mlflow (6 tests)
+│   ├── test_models.py      # evaluate_model, _build_classifier, setup_mlflow (6 tests)
+│   └── test_train.py       # baseline logístico y métricas (2 tests)
 └── integration/
-    └── test_pipeline.py    # Fase 03 — prueba del flujo Prefect completo
+    └── test_api.py         # GET /health (1 test, modelo dummy)
 ```
 
 ### Ejecución
 
 ```bash
-# Todos los tests (27 en total — Fases 01 y 02)
+# Todos los tests
 uv run pytest -q
 
 # Solo tests de un módulo específico

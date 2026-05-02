@@ -8,24 +8,36 @@ from typing import Any
 import mlflow
 import mlflow.sklearn
 import numpy as np
-import optuna
 from sklearn.pipeline import Pipeline
-from xgboost import XGBClassifier
 
 from healthcare_fraud.config import SETTINGS
 from healthcare_fraud.models.evaluate import evaluate_model
+from healthcare_fraud.models.registry import setup_mlflow as configure_mlflow_experiment
 
 logger = logging.getLogger(__name__)
 
 
 def setup_mlflow() -> None:
     """Configure MLflow tracking URI, experiment and silence Optuna output."""
-    mlflow.set_tracking_uri(SETTINGS.mlflow_tracking_uri)
-    mlflow.set_experiment(SETTINGS.mlflow_experiment)
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    configure_mlflow_experiment(SETTINGS.mlflow_experiment)
+    try:
+        import optuna
+
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+    except ModuleNotFoundError:
+        logger.debug(
+            "optuna no instalado — omitiendo nivel de log (solo hace falta para optimize_hyperparameters)"
+        )
 
 
-def _build_classifier(params: dict[str, Any], n_neg: int, n_pos: int) -> XGBClassifier:
+def _build_classifier(params: dict[str, Any], n_neg: int, n_pos: int) -> Any:
+    try:
+        from xgboost import XGBClassifier
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "Falta xgboost. Instala el proyecto (`uv sync`) y selecciona el kernel del `.venv`."
+        ) from exc
+
     scale_pos_weight = n_neg / max(n_pos, 1)
     return XGBClassifier(
         **params,
@@ -45,6 +57,14 @@ def optimize_hyperparameters(
     y_val: np.ndarray,
 ) -> dict[str, Any]:
     """Optuna study with MLflow nested runs per trial. Returns best hyperparameters."""
+    try:
+        import optuna
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "optimize_hyperparameters requiere optuna. Instala dependencias del proyecto "
+            "(p. ej. `uv sync`) o usa el kernel Python del `.venv`."
+        ) from exc
+
     from sklearn.metrics import roc_auc_score
 
     n_neg = int((y_train == 0).sum())

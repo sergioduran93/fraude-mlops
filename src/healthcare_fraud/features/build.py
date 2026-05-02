@@ -142,9 +142,106 @@ def _aggregate_by_provider(claims_enriched: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
+_CMS_TABLE_KEYS = frozenset({"inpatient", "outpatient", "beneficiary", "labels_train"})
+
+
+def _build_features_from_claims_flat(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate consolidated claim-level CSV (`claims_flat`) to provider-level rows.
+
+    Reutiliza los mismos nombres que ``FEATURE_COLS`` del pipeline CMS.
+    ``unique_benes`` es un proxy (cardinalidad edad+género+estado); no hay ``BeneID``.
+    """
+    required = {"Provider_ID", "Claim_ID", "Is_Fraud"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"claims_flat missing columns: {sorted(missing)}")
+
+    g = df.copy()
+    g["Patient_Gender"] = g["Patient_Gender"].astype(str).str.strip()
+    g["_patient_key"] = (
+        g["Patient_Age"].astype(str)
+        + "_"
+        + g["Patient_Gender"]
+        + "_"
+        + g["Patient_State"].astype(str).str.strip()
+    )
+
+    if "Visit_Type" in g.columns:
+        vt = g["Visit_Type"].astype(str).str.strip().str.lower()
+        g["_is_ip"] = (vt == "inpatient").astype("int8")
+        g["_is_op"] = vt.isin(["outpatient", "emergency"]).astype("int8")
+    else:
+        z = np.zeros(len(g), dtype="int8")
+        g["_is_ip"] = z
+        g["_is_op"] = z
+
+    if {"Claim_Amount", "Approved_Amount"}.issubset(g.columns):
+        g["_deduct_proxy"] = (g["Claim_Amount"] - g["Approved_Amount"]).clip(lower=0)
+    else:
+        g["_deduct_proxy"] = np.nan
+
+    dur_col = (
+        "Days_Between_Service_and_Claim" if "Days_Between_Service_and_Claim" in g.columns else None
+    )
+    stay_col = "Length_of_Stay" if "Length_of_Stay" in g.columns else None
+    chronic_col = "Chronic_Condition_Flag" if "Chronic_Condition_Flag" in g.columns else None
+
+    spec: dict[str, tuple[str, str]] = {
+        "total_claims": ("Claim_ID", "count"),
+        "ip_claims": ("_is_ip", "sum"),
+        "op_claims": ("_is_op", "sum"),
+        "unique_benes": ("_patient_key", "nunique"),
+        "total_reimbursed": ("Claim_Amount", "sum"),
+        "mean_reimbursed": ("Claim_Amount", "mean"),
+        "max_reimbursed": ("Claim_Amount", "max"),
+        "total_deductible": ("_deduct_proxy", "sum"),
+        "mean_bene_age": ("Patient_Age", "mean"),
+        "PotentialFraud": ("Is_Fraud", "max"),
+    }
+    if dur_col:
+        spec["mean_claim_duration"] = (dur_col, "mean")
+    if stay_col:
+        spec["mean_hosp_stay"] = (stay_col, "mean")
+    else:
+        g["_stay_na"] = np.nan
+        spec["mean_hosp_stay"] = ("_stay_na", "mean")
+    if chronic_col:
+        spec["mean_chronic_count"] = (chronic_col, "mean")
+    else:
+        g["_chronic_na"] = np.nan
+        spec["mean_chronic_count"] = ("_chronic_na", "mean")
+
+    if "Provider_Specialty" in g.columns:
+        spec["unique_attending"] = ("Provider_Specialty", "nunique")
+
+    agg = g.groupby("Provider_ID", as_index=False).agg(**spec)
+    if "unique_attending" not in agg.columns:
+        agg["unique_attending"] = np.nan
+    if "mean_claim_duration" not in agg.columns:
+        agg["mean_claim_duration"] = np.nan
+
+    agg["pct_deceased"] = 0.0
+    safe_benes = agg["unique_benes"].replace(0, np.nan)
+    agg["claims_per_bene"] = agg["total_claims"] / safe_benes
+    agg["reimbursed_per_bene"] = agg["total_reimbursed"] / safe_benes
+
+    agg = agg.rename(columns={"Provider_ID": "Provider"})
+    agg["PotentialFraud"] = agg["PotentialFraud"].astype("int8")
+
+    logger.info(
+        "claims_flat → provider matrix: %d providers, %d columns",
+        len(agg),
+        len(agg.columns),
+    )
+    return agg
+
+
 def build_features(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Merge and aggregate raw tables into a provider-level feature matrix."""
-    for key in ("inpatient", "outpatient", "beneficiary", "labels_train"):
+    if "claims_flat" in tables and not _CMS_TABLE_KEYS.issubset(tables.keys()):
+        return _build_features_from_claims_flat(tables["claims_flat"])
+
+    for key in _CMS_TABLE_KEYS:
         if key not in tables:
             raise ValueError(f"Missing required table: '{key}'")
 

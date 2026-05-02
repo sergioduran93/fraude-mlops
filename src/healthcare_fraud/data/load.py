@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from healthcare_fraud.config import SETTINGS
+from healthcare_fraud.config import PROJECT_ROOT, SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 # Test clinical files (Test_Beneficiary, Test_Inpatient, Test_Outpatient) are skipped
 # because they lack fraud labels and are only needed for inference (Fase 04+).
 _TABLE_PATTERNS: list[tuple[str, str]] = [
+    # Dataset consolidado (p. ej. nudratabbas/healthcare-fraud-detection-dataset)
+    (r"healthcare[_\-]?fraud[_\-]?detection", "claims_flat"),
     (r"train.*beneficiary", "beneficiary"),
     (r"train.*inpatient", "inpatient"),
     (r"train.*outpatient", "outpatient"),
@@ -86,13 +88,39 @@ def discover_csv_files(raw_dir: Path) -> dict[str, Path]:
         if not matched:
             logger.warning("Unrecognized CSV filename: %s — skipped", csv_path.name)
 
+    if not mapping:
+        raise ValueError(
+            f"No se reconoció ningún CSV en {raw_dir}. Se esperan tablas tipo CMS Medicare "
+            "(train_*beneficiary, train_*inpatient, …) o un único archivo "
+            "`healthcare_fraud_detection.csv` (dataset consolidado)."
+        )
+
     logger.info("Discovered tables: %s", list(mapping.keys()))
     return mapping
 
 
+def _resolve_raw_directory(raw_dir: Path | None) -> Path:
+    """Directorio raw principal o fallback si el CSV está solo en notebooks/data/raw."""
+    if raw_dir is not None:
+        return raw_dir.resolve()
+    primary = (SETTINGS.data_dir / "raw").resolve()
+    if any(primary.glob("*.csv")):
+        return primary
+    fallback = (PROJECT_ROOT / "notebooks" / "data" / "raw").resolve()
+    if fallback.is_dir() and any(fallback.glob("*.csv")):
+        logger.warning(
+            "Hay CSV en %s pero no en %s — usando el primero. Copia los archivos a %s para evitar confusiones.",
+            fallback,
+            primary,
+            primary,
+        )
+        return fallback
+    return primary
+
+
 def load_dataset(raw_dir: Path | None = None) -> dict[str, pd.DataFrame]:
     """Authenticate, download if needed, discover CSVs and return DataFrames by key."""
-    effective_dir = raw_dir if raw_dir is not None else SETTINGS.data_dir / "raw"
+    effective_dir = _resolve_raw_directory(raw_dir)
 
     csv_map = {}
     if any(effective_dir.glob("*.csv")):

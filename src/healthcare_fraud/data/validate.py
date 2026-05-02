@@ -15,6 +15,8 @@ _REQUIRED_COLUMNS: dict[str, list[str]] = {
     "outpatient": ["BeneID", "ClaimID", "Provider", "InscClaimAmtReimbursed"],
     "labels_train": ["Provider", "PotentialFraud"],
     "labels_test": ["Provider"],
+    # Tabla única tipo Kaggle consolidado (columnas snake_case del CSV publicado)
+    "claims_flat": ["Provider_ID", "Claim_ID", "Is_Fraud"],
 }
 
 # Tables that contain reimbursement amount columns to check for negatives.
@@ -43,6 +45,11 @@ def _check_business_rules(df: pd.DataFrame, name: str) -> None:
         if negative_count > 0:
             raise ValueError(f"[{name}] Found {negative_count} negative values in {_AMOUNT_COLUMN}")
 
+    if "Claim_Amount" in df.columns:
+        negative_count = (df["Claim_Amount"] < 0).sum()
+        if negative_count > 0:
+            raise ValueError(f"[{name}] Found {negative_count} negative values in Claim_Amount")
+
     if "PotentialFraud" in df.columns:
         valid_values = {"Yes", "No"}
         invalid = set(df["PotentialFraud"].dropna().unique()) - valid_values
@@ -50,6 +57,11 @@ def _check_business_rules(df: pd.DataFrame, name: str) -> None:
             raise ValueError(
                 f"[{name}] Invalid PotentialFraud values: {invalid}. Expected {valid_values}"
             )
+
+    if "Is_Fraud" in df.columns:
+        invalid = set(df["Is_Fraud"].dropna().unique()) - {0, 1}
+        if invalid:
+            raise ValueError(f"[{name}] Invalid Is_Fraud values: {invalid}. Expected {{0, 1}}")
 
 
 def validate_dataframe(df: pd.DataFrame, name: str) -> pd.DataFrame:
