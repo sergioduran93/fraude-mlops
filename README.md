@@ -3,6 +3,11 @@
 Pipeline de MLOps para detección de fraude en reclamaciones del sector salud.
 Proyecto académico final — Curso MLOps, Universidad de Medellín.
 
+**Integrantes:**
+- Diego Fernando Castañeda Loaiza
+- Sergio Andres Duran Vasquez
+- Ivan Stiven Castrillon Duque
+
 ---
 
 ## Problema de negocio
@@ -838,6 +843,6 @@ uv sync --group dev → ruff check → ruff format --check → pytest con cobert
 
 ## Integrantes
 
-- Diego Castaneda
-- Sergio Andrés Durán Vásquez
-- Ivan Stiven Castrillon
+- Diego Fernando Castañeda Loaiza
+- Sergio Andres Duran Vasquez
+- Ivan Stiven Castrillon Duque
